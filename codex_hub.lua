@@ -61,6 +61,8 @@ local CATEGORY_DECALS = {
     Weapons = 95898332716312,
     Progress = 139818999438291,
     Visuals = 5676602141,
+    Shooting = 14446878271,
+    Player = 14442807051,
 }
 
 -- Add each new supported experience here. Universe matching keeps support active
@@ -73,6 +75,16 @@ local SUPPORTED_GAMES = {
         RootPlaceId = 110806816173057,
         PlaceIds = {
             [110806816173057] = true,
+        },
+    },
+    Basketball = {
+        Key = "Basketball",
+        DisplayName = "NEW MyPark",
+        UniverseId = 4931927012,
+        RootPlaceId = 14386691987,
+        PlaceIds = {
+            [14386691987] = true,
+            [124914780116925] = true,
         },
     },
 }
@@ -3182,9 +3194,8 @@ end)
 
 -- BUILD YOUR MENU BELOW THIS LINE.
 -- Game controls stay inside Home categories; Settings remains configuration-only.
-local function buildReviveFeatures()
+local function createCategoryHomePage()
 local HomePage = Window:AddPage("Home")
-local ToolsPage = Window:AddPage("Tools")
 
 -- Home uses large frozen decal cards. The images work as the category tabs while
 -- the selected card reveals its controls below without changing the page layout.
@@ -3395,6 +3406,13 @@ local function addHomeCategory(name, order, assetId)
     end))
     return category
 end
+
+return HomePage, addHomeCategory, selectHomeCategory
+end
+
+local function buildReviveFeatures()
+local HomePage, addHomeCategory, selectHomeCategory = createCategoryHomePage()
+local ToolsPage = Window:AddPage("Tools")
 
 local OvernightPage = addHomeCategory("Overnight", 1, CATEGORY_DECALS.Overnight)
 local CombatPage = addHomeCategory("Combat", 2, CATEGORY_DECALS.Combat)
@@ -6977,6 +6995,387 @@ end))
 
 end
 
+local function buildBasketballFeatures()
+local HomePage, addHomeCategory, selectHomeCategory = createCategoryHomePage()
+
+local ShootingPage = addHomeCategory("Shooting", 1, CATEGORY_DECALS.Shooting)
+local PlayerPage = addHomeCategory("Player", 2, CATEGORY_DECALS.Player)
+
+local AutoShotSection = ShootingPage:AddSection("Perfect Release", "Left")
+local MeterSection = ShootingPage:AddSection("Shot Meter", "Right")
+local ShotStatusSection = ShootingPage:AddSection("Live Shot Status", "Right")
+local PlayerUtilitySection = PlayerPage:AddSection("Player Utility", "Left")
+local CameraSection = PlayerPage:AddSection("Camera", "Right")
+local PlayerStatusSection = PlayerPage:AddSection("Live Player Status", "Right")
+
+selectHomeCategory("Shooting")
+
+local basketballState = {
+    AutoGreen = false,
+    AntiAfk = false,
+    Calibration = 0.78,
+    GuideEnabled = true,
+    MeterScale = 1,
+    ReleasedThisShot = false,
+    ForceNextShot = false,
+    LastMeterValue = 0,
+    WasMeterVisible = false,
+    LastStatusUpdate = 0,
+}
+
+local meterStatusLabel = ShotStatusSection:AddLabel("Meter: Waiting for a shot")
+local releaseStatusLabel = ShotStatusSection:AddLabel("Release: Auto Green disabled")
+local timingStatusLabel = ShotStatusSection:AddLabel("Target: 78% visual -> approximately 100% server read")
+local playerCourtLabel = PlayerStatusSection:AddLabel("Court: Reading...")
+local playerBallLabel = PlayerStatusSection:AddLabel("Basketball: Reading...")
+local playerModeLabel = PlayerStatusSection:AddLabel("Place: " .. tostring(game.PlaceId))
+local antiAfkStatusLabel = PlayerUtilitySection:AddLabel("Anti-AFK: Disabled")
+
+local shootingGui = nil
+local shootingBar = nil
+local releaseGuide = nil
+local meterScaleObject = nil
+
+local okInput, VirtualInputManager = pcall(function()
+    return game:GetService("VirtualInputManager")
+end)
+if not okInput then
+    VirtualInputManager = nil
+end
+
+local function sendShootKey(isDown)
+    if VirtualInputManager then
+        local ok = pcall(function()
+            VirtualInputManager:SendKeyEvent(isDown, Enum.KeyCode.E, false, game)
+        end)
+        if ok then
+            return true
+        end
+    end
+
+    if isDown and type(keypress) == "function" then
+        return pcall(keypress, 0x45)
+    elseif not isDown and type(keyrelease) == "function" then
+        return pcall(keyrelease, 0x45)
+    end
+    return false
+end
+
+local function updateReleaseGuide()
+    if not releaseGuide or not releaseGuide.Parent then
+        return
+    end
+    releaseGuide.Position = UDim2.new(0, 0, 1 - basketballState.Calibration, 0)
+    releaseGuide.Visible = basketballState.GuideEnabled
+end
+
+local function resolveShotMeter()
+    if shootingGui and shootingGui.Parent and shootingBar and shootingBar.Parent then
+        return shootingGui, shootingBar
+    end
+
+    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    local visual = playerGui and playerGui:FindFirstChild("Visual")
+    local candidate = visual and visual:FindFirstChild("Shooting")
+    local bar = candidate and candidate:FindFirstChild("Bar")
+    if not candidate or not bar or not candidate:IsA("GuiObject") or not bar:IsA("GuiObject") then
+        shootingGui = nil
+        shootingBar = nil
+        return nil, nil
+    end
+
+    shootingGui = candidate
+    shootingBar = bar
+
+    meterScaleObject = shootingGui:FindFirstChild("CodexMeterScale")
+    if not meterScaleObject then
+        meterScaleObject = create("UIScale", {
+            Name = "CodexMeterScale",
+            Scale = basketballState.MeterScale,
+        }, shootingGui)
+    end
+    meterScaleObject.Scale = basketballState.MeterScale
+
+    releaseGuide = shootingGui:FindFirstChild("CodexReleaseGuide")
+    if not releaseGuide then
+        releaseGuide = create("Frame", {
+            Name = "CodexReleaseGuide",
+            Size = UDim2.new(1, 8, 0, 3),
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 1 - basketballState.Calibration, 0),
+            BackgroundColor3 = COLORS.toggleOnBright,
+            BorderSizePixel = 0,
+            ZIndex = math.max(shootingBar.ZIndex + 4, 12),
+        }, shootingGui)
+        addCorner(releaseGuide, 2)
+        addStroke(releaseGuide, SNOW_WHITE, 1, 0.08)
+    end
+    updateReleaseGuide()
+    return shootingGui, shootingBar
+end
+
+local autoGreenControl = AutoShotSection:AddToggle({
+    Name = "Auto Green Jumpshots",
+    Description = "Releases E early enough for the game's delayed meter read to reach full power",
+    Default = false,
+    Flag = "basketball_auto_green",
+    Callback = function(value)
+        basketballState.AutoGreen = value
+        basketballState.ReleasedThisShot = false
+        releaseStatusLabel.Text = value and "Release: Armed for the next shot" or "Release: Auto Green disabled"
+        releaseStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+    end,
+})
+
+AutoShotSection:AddSlider({
+    Name = "Release Calibration",
+    Min = 0.70,
+    Max = 0.88,
+    Step = 0.01,
+    Default = 0.78,
+    Flag = "basketball_release_calibration",
+    Callback = function(value)
+        basketballState.Calibration = value
+        timingStatusLabel.Text = string.format(
+            "Target: %.0f%% visual -> approximately 100%% server read",
+            value * 100
+        )
+        updateReleaseGuide()
+    end,
+})
+
+AutoShotSection:AddLabel("The game reads the meter 0.10 seconds after E is released. Start at 0.78; adjust only if your connection consistently lands early or late.")
+
+AutoShotSection:AddButton({
+    Name = "Test One Perfect Shot",
+    Description = "Presses E and auto-releases the next detected meter cycle",
+    Callback = function()
+        playToggleClick(true)
+        basketballState.ForceNextShot = true
+        basketballState.ReleasedThisShot = false
+        releaseStatusLabel.Text = "Release: Test shot armed"
+        if not sendShootKey(true) then
+            basketballState.ForceNextShot = false
+            releaseStatusLabel.Text = "Release: This executor cannot simulate the E key"
+            releaseStatusLabel.TextColor3 = COLORS.warning
+            return
+        end
+        task.delay(1.25, function()
+            if basketballState.ForceNextShot then
+                basketballState.ForceNextShot = false
+                sendShootKey(false)
+                if releaseStatusLabel.Parent then
+                    releaseStatusLabel.Text = "Release: No valid shot meter appeared"
+                    releaseStatusLabel.TextColor3 = COLORS.warning
+                end
+            end
+        end)
+    end,
+})
+
+MeterSection:AddToggle({
+    Name = "Release Guide Line",
+    Description = "Shows the calibrated trigger point directly on the game's shot meter",
+    Default = true,
+    Flag = "basketball_release_guide",
+    Callback = function(value)
+        basketballState.GuideEnabled = value
+        resolveShotMeter()
+        updateReleaseGuide()
+    end,
+})
+
+MeterSection:AddSlider({
+    Name = "Shot Meter Scale",
+    Min = 0.75,
+    Max = 1.50,
+    Step = 0.05,
+    Default = 1,
+    Flag = "basketball_meter_scale",
+    Callback = function(value)
+        basketballState.MeterScale = value
+        resolveShotMeter()
+        if meterScaleObject and meterScaleObject.Parent then
+            meterScaleObject.Scale = value
+        end
+    end,
+})
+
+MeterSection:AddButton({
+    Name = "Rescan Shot Meter",
+    Description = "Reconnects Codex Hub after the game's UI reloads",
+    Callback = function()
+        playToggleClick(true)
+        shootingGui = nil
+        shootingBar = nil
+        releaseGuide = nil
+        meterScaleObject = nil
+        local found = resolveShotMeter() ~= nil
+        meterStatusLabel.Text = found and "Meter: Connected" or "Meter: PlayerGui.Visual.Shooting not found"
+        meterStatusLabel.TextColor3 = found and COLORS.success or COLORS.warning
+    end,
+})
+
+PlayerUtilitySection:AddToggle({
+    Name = "Anti-AFK / Anti-Idle",
+    Description = "Responds whenever Roblox sends an inactivity signal",
+    Default = false,
+    Flag = "basketball_anti_afk",
+    Callback = function(value)
+        basketballState.AntiAfk = value
+        antiAfkStatusLabel.Text = value and "Anti-AFK: Armed and waiting for an idle signal" or "Anti-AFK: Disabled"
+        antiAfkStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+    end,
+})
+
+local virtualUser = game:GetService("VirtualUser")
+track(LocalPlayer.Idled:Connect(function()
+    if not basketballState.AntiAfk then
+        return
+    end
+    pcall(function()
+        virtualUser:CaptureController()
+        virtualUser:ClickButton2(Vector2.new(0, 0))
+    end)
+    antiAfkStatusLabel.Text = "Anti-AFK: Idle signal handled"
+    antiAfkStatusLabel.TextColor3 = COLORS.success
+end))
+
+PlayerUtilitySection:AddButton({
+    Name = "Test Anti-AFK Pulse",
+    Description = "Runs one harmless idle-prevention pulse",
+    Callback = function()
+        playToggleClick(true)
+        pcall(function()
+            virtualUser:CaptureController()
+            virtualUser:ClickButton2(Vector2.new(0, 0))
+        end)
+        antiAfkStatusLabel.Text = "Anti-AFK: Test pulse completed"
+        antiAfkStatusLabel.TextColor3 = COLORS.success
+    end,
+})
+
+local originalFov = workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView or 70
+local originalZoom = LocalPlayer.CameraMaxZoomDistance
+local cameraFov = originalFov
+
+local function applyCameraSettings()
+    if workspace.CurrentCamera then
+        workspace.CurrentCamera.FieldOfView = cameraFov
+    end
+end
+
+CameraSection:AddSlider({
+    Name = "Camera FOV",
+    Min = 50,
+    Max = 100,
+    Step = 1,
+    Default = originalFov,
+    Flag = "basketball_camera_fov",
+    Callback = function(value)
+        cameraFov = value
+        applyCameraSettings()
+    end,
+})
+
+CameraSection:AddSlider({
+    Name = "Maximum Camera Zoom",
+    Min = 8,
+    Max = 40,
+    Step = 1,
+    Default = math.clamp(originalZoom, 8, 40),
+    Flag = "basketball_camera_zoom",
+    Callback = function(value)
+        LocalPlayer.CameraMaxZoomDistance = value
+    end,
+})
+
+track(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    task.defer(applyCameraSettings)
+end))
+
+PlayerStatusSection:AddButton({
+    Name = "Refresh Player Status",
+    Description = "Refreshes court, ball, and meter information now",
+    Callback = function()
+        playToggleClick(true)
+        basketballState.LastStatusUpdate = 0
+    end,
+})
+
+track(RunService.RenderStepped:Connect(function()
+    local meter, bar = resolveShotMeter()
+    local visible = meter and meter.Visible == true
+    local value = bar and tonumber(bar.Size.Y.Scale) or 0
+    local startedNewShot = visible and not basketballState.WasMeterVisible
+    local rising = visible and value > basketballState.LastMeterValue + 0.0005
+
+    if startedNewShot or value <= 0.02 or (visible and value + 0.08 < basketballState.LastMeterValue) then
+        basketballState.ReleasedThisShot = false
+    end
+
+    if visible and rising and value >= basketballState.Calibration
+        and not basketballState.ReleasedThisShot
+        and (basketballState.AutoGreen or basketballState.ForceNextShot) then
+        basketballState.ReleasedThisShot = true
+        basketballState.ForceNextShot = false
+        if sendShootKey(false) then
+            releaseStatusLabel.Text = string.format(
+                "Release: Fired at %.0f%% visual for the delayed full-power read",
+                value * 100
+            )
+            releaseStatusLabel.TextColor3 = COLORS.success
+        else
+            releaseStatusLabel.Text = "Release: E key release is unsupported by this executor"
+            releaseStatusLabel.TextColor3 = COLORS.warning
+        end
+    end
+
+    basketballState.LastMeterValue = value
+    basketballState.WasMeterVisible = visible
+
+    local now = os.clock()
+    if now - basketballState.LastStatusUpdate >= 0.20 then
+        basketballState.LastStatusUpdate = now
+        meterStatusLabel.Text = visible
+            and string.format("Meter: %.0f%% %s", value * 100, rising and "(charging)" or "")
+            or (meter and "Meter: Ready" or "Meter: Waiting for PlayerGui.Visual.Shooting")
+        meterStatusLabel.TextColor3 = visible and COLORS.success or COLORS.muted
+
+        local character = LocalPlayer.Character
+        local hasBall = character and character:FindFirstChild("Basketball") ~= nil
+        local court = LocalPlayer:GetAttribute("Court")
+        playerCourtLabel.Text = "Court: " .. (court == nil and "Not assigned" or tostring(court))
+        playerBallLabel.Text = "Basketball: " .. (hasBall and "Equipped" or "Not held")
+        playerBallLabel.TextColor3 = hasBall and COLORS.success or COLORS.muted
+        playerModeLabel.Text = "Place: " .. tostring(game.PlaceId) .. " | Universe: " .. tostring(game.GameId)
+    end
+end))
+
+resolveShotMeter()
+
+track(gui.Destroying:Connect(function()
+    basketballState.AutoGreen = false
+    basketballState.ForceNextShot = false
+    sendShootKey(false)
+    if releaseGuide and releaseGuide.Parent then
+        releaseGuide:Destroy()
+    end
+    if meterScaleObject and meterScaleObject.Parent then
+        meterScaleObject:Destroy()
+    end
+    if workspace.CurrentCamera then
+        workspace.CurrentCamera.FieldOfView = originalFov
+    end
+    LocalPlayer.CameraMaxZoomDistance = originalZoom
+end))
+
+gui:SetAttribute("BasketballShotMeterPath", "PlayerGui.Visual.Shooting")
+gui:SetAttribute("BasketballReleaseCalibration", basketballState.Calibration)
+gui:SetAttribute("BasketballShootingDecal", CATEGORY_DECALS.Shooting)
+gui:SetAttribute("BasketballPlayerDecal", CATEGORY_DECALS.Player)
+end
+
 local function buildUnsupportedGameShell()
     local HomePage = Window:AddPage("Home")
     local supportSection = HomePage:AddSection("Game Support", "Left")
@@ -6993,6 +7392,12 @@ if ACTIVE_GAME_SUPPORT and ACTIVE_GAME_SUPPORT.Key == "Revive" then
     gui:SetAttribute("GameSupportKey", ACTIVE_GAME_SUPPORT.Key)
     gui:SetAttribute("SupportedUniverseId", ACTIVE_GAME_SUPPORT.UniverseId)
     buildReviveFeatures()
+elseif ACTIVE_GAME_SUPPORT and ACTIVE_GAME_SUPPORT.Key == "Basketball" then
+    statusGui.Enabled = false
+    gui:SetAttribute("GameSupported", true)
+    gui:SetAttribute("GameSupportKey", ACTIVE_GAME_SUPPORT.Key)
+    gui:SetAttribute("SupportedUniverseId", ACTIVE_GAME_SUPPORT.UniverseId)
+    buildBasketballFeatures()
 else
     statusGui.Enabled = false
     gui:SetAttribute("GameSupported", false)
