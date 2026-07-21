@@ -47,7 +47,7 @@ local SETTINGS = {
     AvatarPreviewEnabled = true,
     PlayerHeadshotEnabled = true,
     -- The decal is currently restricted, so use its public thumbnail until Asset Access is set to Open Use.
-    ProfileLogoImageId = "rbxassetid://151878913", -- Clear to restore the Roblox avatar.
+    ProfileLogoImageId = "rbxthumb://type=Asset&id=151878913&w=420&h=420", -- Clear to restore the Roblox avatar.
 }
 
 -- Keep the legacy storage path so existing profiles and autoload selections survive the rebrand.
@@ -372,85 +372,149 @@ local icicleLayer = create("Frame", {
     ZIndex = 80,
 }, main)
 
-local function makeIceEdge(position, size)
-    local edge = create("Frame", {
-        Position = position,
-        Size = size,
-        BackgroundColor3 = COLORS.accent,
-        BackgroundTransparency = 0.16,
-        BorderSizePixel = 0,
-        ZIndex = 81,
-    }, icicleLayer)
-    create("UIGradient", {
-        Name = "FrozenAccentGradient",
-        Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, SNOW_WHITE),
-            ColorSequenceKeypoint.new(0.55, COLORS.accent),
-            ColorSequenceKeypoint.new(1.00, COLORS.accentDark),
-        }),
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0.00, 0.15),
-            NumberSequenceKeypoint.new(0.50, 0.52),
-            NumberSequenceKeypoint.new(1.00, 0.15),
-        }),
-    }, edge)
-end
+do
+    local function makeIceEdge(position, size)
+        local glow = create("Frame", {
+            Position = position,
+            Size = size,
+            BackgroundColor3 = COLORS.accent,
+            BackgroundTransparency = 0.76,
+            BorderSizePixel = 0,
+            ZIndex = 80,
+        }, icicleLayer)
+        addCorner(glow, 4)
 
-makeIceEdge(UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 4))
-makeIceEdge(UDim2.new(0, 0, 1, -4), UDim2.new(1, 0, 0, 4))
-makeIceEdge(UDim2.fromOffset(0, 0), UDim2.new(0, 4, 1, 0))
-makeIceEdge(UDim2.new(1, -4, 0, 0), UDim2.new(0, 4, 1, 0))
+        local edge = create("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.new(1, -2, 1, -2),
+            BackgroundColor3 = COLORS.accent,
+            BackgroundTransparency = 0.20,
+            BorderSizePixel = 0,
+            ZIndex = 81,
+        }, glow)
+        addCorner(edge, 4)
+        create("UIGradient", {
+            Name = "FrozenAccentGradient",
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0.00, COLORS.accentDark),
+                ColorSequenceKeypoint.new(0.22, SNOW_WHITE),
+                ColorSequenceKeypoint.new(0.52, COLORS.accent),
+                ColorSequenceKeypoint.new(0.78, SNOW_WHITE),
+                ColorSequenceKeypoint.new(1.00, COLORS.accentDark),
+            }),
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0.00, 0.18),
+                NumberSequenceKeypoint.new(0.50, 0.46),
+                NumberSequenceKeypoint.new(1.00, 0.18),
+            }),
+        }, edge)
+    end
 
-local function makeIcicle(index, xScale, yScale, width, height, direction)
-    local icicle = create("Frame", {
-        Name = "Icicle" .. tostring(index),
-        AnchorPoint = Vector2.new(0.5, direction == 1 and 0 or 1),
-        Position = UDim2.new(xScale, 0, yScale, direction == 1 and -1 or 1),
-        Size = UDim2.fromOffset(width, height),
-        BackgroundColor3 = COLORS.accent,
-        BackgroundTransparency = 0.04,
-        BorderSizePixel = 0,
-        ZIndex = 82,
-    }, icicleLayer)
-    addCorner(icicle, math.max(2, math.floor(width * 0.35)))
-    create("UIGradient", {
-        Name = "FrozenAccentGradient",
-        Rotation = direction == 1 and 90 or -90,
-        Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, SNOW_WHITE),
-            ColorSequenceKeypoint.new(0.48, COLORS.accent),
-            ColorSequenceKeypoint.new(1.00, COLORS.accentDark),
-        }),
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0.00, 0.02),
-            NumberSequenceKeypoint.new(0.65, 0.18),
-            NumberSequenceKeypoint.new(1.00, 0.42),
-        }),
-    }, icicle)
+    makeIceEdge(UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 5))
+    makeIceEdge(UDim2.new(0, 0, 1, -5), UDim2.new(1, 0, 0, 5))
+    makeIceEdge(UDim2.fromOffset(0, 0), UDim2.new(0, 5, 1, 0))
+    makeIceEdge(UDim2.new(1, -5, 0, 0), UDim2.new(0, 5, 1, 0))
 
-    local tipSize = math.max(5, math.floor(width * 0.72))
-    local tip = create("Frame", {
-        Name = "CrystalTip",
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = direction == 1 and UDim2.new(0.5, 0, 1, -1) or UDim2.new(0.5, 0, 0, 1),
-        Size = UDim2.fromOffset(tipSize, tipSize),
-        BackgroundColor3 = COLORS.accentDark,
-        BackgroundTransparency = 0.10,
-        BorderSizePixel = 0,
-        Rotation = 45,
-        ZIndex = 82,
-    }, icicle)
-    addCorner(tip, 2)
-end
+    local function makeIcicle(index, xScale, yScale, width, height)
+        local icicle = create("Frame", {
+            Name = "Icicle" .. tostring(index),
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(xScale, 0, yScale, -1),
+            Size = UDim2.fromOffset(width + 10, height + 8),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = 82,
+        }, icicleLayer)
 
-local iceRandom = Random.new(2026)
-for index = 1, 24 do
-    local xScale = (index - 0.5) / 24
-    makeIcicle(index, xScale, 1, iceRandom:NextInteger(6, 13), iceRandom:NextInteger(18, 50), 1)
-end
-for index = 1, 10 do
-    local xScale = index <= 5 and iceRandom:NextNumber(0.01, 0.20) or iceRandom:NextNumber(0.80, 0.99)
-    makeIcicle(24 + index, xScale, 0, iceRandom:NextInteger(5, 10), iceRandom:NextInteger(10, 27), 1)
+        local glow = create("Frame", {
+            Name = "SoftGlow",
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.fromScale(0.5, 0),
+            Size = UDim2.fromOffset(width + 4, math.max(7, height - 5)),
+            BackgroundColor3 = COLORS.accent,
+            BackgroundTransparency = 0.76,
+            BorderSizePixel = 0,
+            ZIndex = 81,
+        }, icicle)
+        addCorner(glow, math.max(3, math.floor(width * 0.5)))
+
+        local body = create("Frame", {
+            Name = "CrystalBody",
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.fromScale(0.5, 0),
+            Size = UDim2.fromOffset(width, math.max(6, math.floor(height * 0.58))),
+            BackgroundColor3 = SNOW_WHITE,
+            BackgroundTransparency = 0.06,
+            BorderSizePixel = 0,
+            ZIndex = 82,
+        }, icicle)
+        addCorner(body, math.max(3, math.floor(width * 0.46)))
+        create("UIGradient", {
+            Name = "FrozenAccentGradient",
+            Rotation = 90,
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0.00, SNOW_WHITE),
+                ColorSequenceKeypoint.new(0.58, COLORS.accent),
+                ColorSequenceKeypoint.new(1.00, COLORS.accentDark),
+            }),
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0.00, 0.02),
+                NumberSequenceKeypoint.new(0.72, 0.20),
+                NumberSequenceKeypoint.new(1.00, 0.38),
+            }),
+        }, body)
+
+        local taper = create("Frame", {
+            Name = "CrystalTaper",
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, math.floor(height * 0.46)),
+            Size = UDim2.fromOffset(math.max(4, math.floor(width * 0.62)), math.max(7, math.floor(height * 0.43))),
+            BackgroundColor3 = COLORS.accent,
+            BackgroundTransparency = 0.10,
+            BorderSizePixel = 0,
+            ZIndex = 83,
+        }, icicle)
+        addCorner(taper, math.max(2, math.floor(width * 0.32)))
+
+        local tipSize = math.max(4, math.floor(width * 0.52))
+        local tip = create("Frame", {
+            Name = "CrystalPoint",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0, height - 2),
+            Size = UDim2.fromOffset(tipSize, tipSize),
+            BackgroundColor3 = COLORS.accentDark,
+            BackgroundTransparency = 0.16,
+            BorderSizePixel = 0,
+            Rotation = 45,
+            ZIndex = 84,
+        }, icicle)
+        addCorner(tip, math.max(1, math.floor(tipSize * 0.22)))
+
+        local highlight = create("Frame", {
+            Name = "IceHighlight",
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, -math.max(1, math.floor(width * 0.18)), 0, 2),
+            Size = UDim2.fromOffset(math.max(1, math.floor(width * 0.18)), math.max(4, math.floor(height * 0.30))),
+            BackgroundColor3 = SNOW_WHITE,
+            BackgroundTransparency = 0.22,
+            BorderSizePixel = 0,
+            ZIndex = 85,
+        }, icicle)
+        addCorner(highlight, 4)
+    end
+
+    local iceRandom = Random.new(20260721)
+    for index = 1, 18 do
+        local evenPosition = (index - 0.5) / 18
+        local xScale = math.clamp(evenPosition + iceRandom:NextNumber(-0.018, 0.018), 0.012, 0.988)
+        makeIcicle(index, xScale, 1, iceRandom:NextInteger(6, 11), iceRandom:NextInteger(15, 43))
+    end
+
+    local topPositions = {0.022, 0.050, 0.083, 0.155, 0.824, 0.874, 0.918, 0.952, 0.982}
+    for index, xScale in ipairs(topPositions) do
+        makeIcicle(18 + index, xScale, 0, iceRandom:NextInteger(5, 9), iceRandom:NextInteger(10, 25))
+    end
 end
 
 local header = create("Frame", {
@@ -3037,6 +3101,7 @@ local REMOTE_NAMES = {
     "getGroupReward",
     "startTimeLimitChallengeReq",
     "timeLimitChallengeResult",
+    "enterTimeLimitBossReq",
     "levelTimeLimitBossReq",
     "setAfkResumeReq",
     "enhanceWeapon",
@@ -3163,6 +3228,7 @@ local state = {
     autoEquipBest = false,
     autoRebirth = false,
     autoSoulRing = false,
+    demonRealm = false,
     discordReminder = true,
 }
 
@@ -3223,8 +3289,13 @@ task.spawn(function()
         statusWidgetLabels.General.TextColor3 = statusLabel.TextColor3
         statusWidgetLabels.AFK.Text = antiAfkStatusLabel.Text
         statusWidgetLabels.AFK.TextColor3 = antiAfkStatusLabel.TextColor3
-        statusWidgetLabels.Special.Text = priorityStatusLabel.Text
-        statusWidgetLabels.Special.TextColor3 = priorityStatusLabel.TextColor3
+        if state.demonRealm and state.demonRealmStatusLabel then
+            statusWidgetLabels.Special.Text = state.demonRealmStatusLabel.Text
+            statusWidgetLabels.Special.TextColor3 = state.demonRealmStatusLabel.TextColor3
+        else
+            statusWidgetLabels.Special.Text = priorityStatusLabel.Text
+            statusWidgetLabels.Special.TextColor3 = priorityStatusLabel.TextColor3
+        end
         statusWidgetLabels.Multi.Text = multiHitStatusLabel.Text
         statusWidgetLabels.Multi.TextColor3 = multiHitStatusLabel.TextColor3
         statusWidgetLabels.Farm.Text = farmStatusLabel.Text .. " | " .. nightmareStatusLabel.Text
@@ -3330,6 +3401,74 @@ local function writeDirectAtom(store, name, value)
     end
     return pcall(atom, value)
 end
+
+state.getDemonRealmState = function()
+    local serverNow = workspace:GetServerTimeNow()
+    local openEndTime = tonumber(readAtomValue(reaperBattleStore, "AtomTimeLimitBossOpenEndTime")) or 0
+    local nextOpenTime = tonumber(readAtomValue(reaperBattleStore, "AtomTimeLimitBossNextOpenTime")) or 0
+    local battleState = tonumber(readAtomValue(reaperBattleStore, "AtomBattleState")) or 0
+    local expEfficiency = tonumber(readAtomValue(reaperBattleStore, "AtomTimeLimitBossExpEfficiency")) or 0
+    return {
+        Open = openEndTime > serverNow,
+        InRealm = battleState == 7,
+        BattleState = battleState,
+        OpenRemaining = math.max(0, math.ceil(openEndTime - serverNow)),
+        NextRemaining = math.max(0, math.ceil(nextOpenTime - serverNow)),
+        ExpEfficiency = expEfficiency,
+    }
+end
+
+state.formatRealmCountdown = function(seconds)
+    seconds = math.max(0, math.floor(tonumber(seconds) or 0))
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local remainder = seconds % 60
+    if hours > 0 then
+        return string.format("%02d:%02d:%02d", hours, minutes, remainder)
+    end
+    return string.format("%02d:%02d", minutes, remainder)
+end
+
+state.demonRealmStatusLabel = CursedKingSection:AddLabel("Demon Realm: Reading global event window...")
+state.refreshDemonRealmStatus = function()
+    local info = state.getDemonRealmState()
+    if info.InRealm then
+        state.demonRealmStatusLabel.Text = "Demon Realm: Inside | Auto farming | "
+            .. state.formatRealmCountdown(info.OpenRemaining) .. " left"
+        state.demonRealmStatusLabel.TextColor3 = COLORS.success
+    elseif info.Open then
+        state.demonRealmStatusLabel.Text = (state.demonRealm and "Demon Realm: Open | Joining... | " or "Demon Realm: Open now | Auto join off | ")
+            .. state.formatRealmCountdown(info.OpenRemaining) .. " left"
+        state.demonRealmStatusLabel.TextColor3 = state.demonRealm and COLORS.success or COLORS.muted
+    elseif state.demonRealm then
+        state.demonRealmStatusLabel.Text = info.NextRemaining > 0
+            and ("Demon Realm: Armed | Next global event in " .. state.formatRealmCountdown(info.NextRemaining))
+            or "Demon Realm: Armed | Waiting for the next global event"
+        state.demonRealmStatusLabel.TextColor3 = COLORS.success
+    else
+        state.demonRealmStatusLabel.Text = info.NextRemaining > 0
+            and ("Demon Realm: Disabled | Next event in " .. state.formatRealmCountdown(info.NextRemaining))
+            or "Demon Realm: Disabled | Global event is closed"
+        state.demonRealmStatusLabel.TextColor3 = COLORS.muted
+    end
+    return info
+end
+
+state.demonRealmControl = CursedKingSection:AddToggle({
+    Name = "Auto Demon Realm",
+    Description = "Joins the global Demon Realm when it opens, attacks continuously, and re-enters while it stays open",
+    Flag = "revive_auto_demon_realm",
+    Callback = function(enabled)
+        state.demonRealm = enabled
+        state.refreshDemonRealmStatus()
+        setReviveStatus(
+            enabled and "Demon Realm armed; waiting for the server event window" or "Auto Demon Realm disabled",
+            enabled and true or nil
+        )
+    end,
+})
+CursedKingSection:AddLabel("The realm timer and stat rewards are server-controlled; Auto Demon Realm waits and rejoins every valid opening.")
+task.defer(state.refreshDemonRealmStatus)
 
 local function getReaperState()
     local mainLevel = tonumber(readAtomValue(reaperBattleStore, "AtomMainLevel")) or 0
@@ -5823,9 +5962,25 @@ task.spawn(function()
         if not state.specialPriority
             and (state.autoAttack or state.bossFarm)
             and not priority.isMultiHitActive()
+            and (tonumber(readAtomValue(reaperBattleStore, "AtomBattleState")) or 0) ~= 7
             and isDue("attack", 0.12)
         then
             fireRemote("attack", getLatestUnlockedBossLevel())
+        end
+        if state.demonRealm and isDue("demonRealmPoll", 0.10) then
+            state.demonRealmInfo = state.refreshDemonRealmStatus()
+            if state.demonRealmInfo.InRealm then
+                if isDue("demonRealmAttack", 0.08) then
+                    fireRemote("attack", nil)
+                end
+            elseif state.demonRealmInfo.Open and isDue("demonRealmEnter", 1.25) then
+                if fireRemote("enterTimeLimitBossReq") then
+                    state.demonRealmStatusLabel.Text = "Demon Realm: Entry requested | Waiting for server confirmation"
+                    state.demonRealmStatusLabel.TextColor3 = COLORS.success
+                end
+            end
+        elseif isDue("demonRealmStatusRefresh", 1) then
+            state.refreshDemonRealmStatus()
         end
         if state.reaper and isDue("reaperPoll", 0.25) then
             local reaperInfo = refreshReaperStatus()
@@ -6137,6 +6292,13 @@ end
 task.spawn(function()
     local currentBoss = 1
     while gui.Parent do
+        if (tonumber(readAtomValue(reaperBattleStore, "AtomBattleState")) or 0) == 7 then
+            currentBoss = 1
+            multiHitStatusLabel.Text = "Multi Hit: Paused while Demon Realm is active"
+            multiHitStatusLabel.TextColor3 = COLORS.muted
+            task.wait(0.20)
+            continue
+        end
         if priority.isMultiHitActive() then
             if multiHitNeedsBootstrap and not bootstrapMultiHitSession() then
                 task.wait(0.25)
