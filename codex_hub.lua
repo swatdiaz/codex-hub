@@ -48,7 +48,9 @@ local SETTINGS = {
     PlayerHeadshotEnabled = true,
     -- The decal is currently restricted, so use its public thumbnail until Asset Access is set to Open Use.
     ProfileLogoImageId = "rbxthumb://type=Asset&id=151878913&w=420&h=420", -- Clear to restore the Roblox avatar.
+    PanelBackgroundImageId = "rbxthumb://type=Asset&id=12862074936&w=768&h=432",
     SectionBackgroundImageId = "rbxthumb://type=Asset&id=134413735110455&w=768&h=432",
+    StatusBackgroundImageId = "rbxthumb://type=Asset&id=2847346557&w=768&h=432",
 }
 
 -- Keep the legacy storage path so existing profiles and autoload selections survive the rebrand.
@@ -89,7 +91,7 @@ local COLORS = {
 }
 
 local UI_FONT = Enum.Font.GothamBold
-local hubTransparencyValue = 0.46
+local hubTransparencyValue = 0.62
 
 local function create(className, properties, parent)
     local object = Instance.new(className)
@@ -421,9 +423,9 @@ do
         Size = UDim2.new(1, -2, 1, -2),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Image = "rbxthumb://type=Asset&id=12862074936&w=768&h=432",
-        ImageColor3 = Color3.fromRGB(225, 244, 253),
-        ImageTransparency = 0.18,
+        Image = SETTINGS.PanelBackgroundImageId,
+        ImageColor3 = Color3.fromRGB(255, 255, 255),
+        ImageTransparency = 0.06,
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 1,
     }, main)
@@ -432,14 +434,14 @@ do
         Name = "PanelImageIceFade",
         Rotation = 90,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(248, 253, 255)),
-            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(214, 238, 249)),
-            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(177, 220, 240)),
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(247, 252, 255)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(232, 246, 253)),
         }),
         Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0.00, 0.12),
-            NumberSequenceKeypoint.new(0.46, 0.30),
-            NumberSequenceKeypoint.new(1.00, 0.18),
+            NumberSequenceKeypoint.new(0.00, 0.03),
+            NumberSequenceKeypoint.new(0.46, 0.08),
+            NumberSequenceKeypoint.new(1.00, 0.05),
         }),
     }, panelBackground)
 end
@@ -563,7 +565,7 @@ local header = create("Frame", {
     Active = true,
     Size = UDim2.new(1, 0, 0, 46),
     BackgroundColor3 = COLORS.sidebar,
-    BackgroundTransparency = hubTransparencyValue,
+    BackgroundTransparency = 0.68,
     BorderSizePixel = 0,
     ZIndex = 20,
 }, main)
@@ -582,7 +584,7 @@ do
         Position = UDim2.new(0, 0, 1, -12),
         Size = UDim2.new(1, 0, 0, 12),
         BackgroundColor3 = COLORS.sidebar,
-        BackgroundTransparency = hubTransparencyValue,
+        BackgroundTransparency = 0.68,
         BorderSizePixel = 0,
         ZIndex = 20,
     }, header)
@@ -706,7 +708,7 @@ local sidebar = create("Frame", {
     Position = UDim2.fromOffset(0, 46),
     Size = UDim2.new(0, 62, 1, -46),
     BackgroundColor3 = COLORS.sidebar,
-    BackgroundTransparency = 0.52,
+    BackgroundTransparency = 0.74,
     BorderSizePixel = 0,
 }, main)
 addCorner(sidebar, 12)
@@ -723,7 +725,7 @@ do
         Name = "SidebarTopJoin",
         Size = UDim2.new(1, 0, 0, 12),
         BackgroundColor3 = Color3.fromRGB(247, 252, 255),
-        BackgroundTransparency = 0.52,
+        BackgroundTransparency = 0.74,
         BorderSizePixel = 0,
     }, sidebar)
     local sidebarRightJoin = create("Frame", {
@@ -731,7 +733,7 @@ do
         Position = UDim2.new(1, -10, 0, 0),
         Size = UDim2.new(0, 10, 1, 0),
         BackgroundColor3 = COLORS.sidebar,
-        BackgroundTransparency = 0.52,
+        BackgroundTransparency = 0.74,
         BorderSizePixel = 0,
     }, sidebar)
     create("UIGradient", {
@@ -758,7 +760,7 @@ local contentBackdrop = create("Frame", {
     Position = UDim2.fromOffset(63, 46),
     Size = UDim2.new(1, -63, 1, -46),
     BackgroundColor3 = COLORS.surface,
-    BackgroundTransparency = 0.56,
+    BackgroundTransparency = 0.78,
     BorderSizePixel = 0,
     ZIndex = 1,
 }, main)
@@ -794,7 +796,7 @@ do
         Name = "ContentTopJoin",
         Size = UDim2.new(1, 0, 0, 12),
         BackgroundColor3 = COLORS.surface,
-        BackgroundTransparency = 0.56,
+        BackgroundTransparency = 0.78,
         BorderSizePixel = 0,
         ZIndex = 1,
     }, contentBackdrop)
@@ -802,7 +804,7 @@ do
         Name = "ContentLeftJoin",
         Size = UDim2.new(0, 12, 1, 0),
         BackgroundColor3 = COLORS.surface,
-        BackgroundTransparency = 0.56,
+        BackgroundTransparency = 0.78,
         BorderSizePixel = 0,
         ZIndex = 1,
     }, contentBackdrop)
@@ -834,7 +836,7 @@ local avatarCard = create("Frame", {
     Position = UDim2.fromOffset(76, 61),
     Size = UDim2.fromOffset(76, 76),
     BackgroundColor3 = COLORS.surface,
-    BackgroundTransparency = 0.64,
+    BackgroundTransparency = 0.72,
     BorderSizePixel = 0,
     ClipsDescendants = false,
     Visible = SETTINGS.AvatarPreviewEnabled,
@@ -913,7 +915,7 @@ local welcomeCard = create("Frame", {
     Position = UDim2.fromOffset(162, 67),
     Size = UDim2.new(1, -178, 0, 64),
     BackgroundColor3 = COLORS.surface,
-    BackgroundTransparency = 0.42,
+    BackgroundTransparency = 0.62,
     BorderSizePixel = 0,
     ZIndex = 5,
 }, main)
@@ -1075,22 +1077,35 @@ local statusFrame = create("Frame", {
     AnchorPoint = Vector2.new(1, 0),
     Position = UDim2.new(1, -24, 0, 72),
     Size = UDim2.fromOffset(360, 236),
-    BackgroundColor3 = COLORS.shell,
-    BackgroundTransparency = 0.13,
+    BackgroundColor3 = Color3.fromRGB(5, 17, 29),
+    BackgroundTransparency = 0.08,
     BorderSizePixel = 0,
     Active = true,
     ZIndex = 500,
 }, statusGui)
 addCorner(statusFrame, 14)
 local statusStroke = addStroke(statusFrame, COLORS.accentDark, 2, 0.08)
-create("UIGradient", {
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, COLORS.surface),
-        ColorSequenceKeypoint.new(0.55, COLORS.surface2),
-        ColorSequenceKeypoint.new(1, COLORS.accentDark:Lerp(COLORS.shell, 0.55)),
-    }),
-    Rotation = 130,
+local statusBackground = create("ImageLabel", {
+    Name = "StatusBackground",
+    Size = UDim2.fromScale(1, 1),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Image = SETTINGS.StatusBackgroundImageId,
+    ImageColor3 = Color3.fromRGB(222, 241, 250),
+    ImageTransparency = 0.08,
+    ScaleType = Enum.ScaleType.Crop,
+    ZIndex = 500,
 }, statusFrame)
+addCorner(statusBackground, 14)
+local statusShade = create("Frame", {
+    Name = "StatusGlassShade",
+    Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Color3.fromRGB(3, 16, 28),
+    BackgroundTransparency = 0.38,
+    BorderSizePixel = 0,
+    ZIndex = 501,
+}, statusFrame)
+addCorner(statusShade, 14)
 
 local statusHeader = create("Frame", {
     Name = "Header",
@@ -1098,24 +1113,27 @@ local statusHeader = create("Frame", {
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     Active = true,
-    ZIndex = 502,
+    ZIndex = 503,
 }, statusFrame)
 local statusTitle = makeLabel(statusHeader, utf8.char(0x2744) .. "  CODEX LIVE STATUS", UDim2.fromOffset(14, 0), UDim2.new(1, -62, 1, 0), COLORS.text, 15, Enum.Font.GothamBold)
-statusTitle.ZIndex = 503
+statusTitle.TextColor3 = COLORS.sectionText
+statusTitle.TextStrokeColor3 = Color3.fromRGB(2, 10, 18)
+statusTitle.TextStrokeTransparency = 0.35
+statusTitle.ZIndex = 504
 local statusMinimizeButton = create("TextButton", {
     Name = "Minimize",
     AnchorPoint = Vector2.new(1, 0.5),
     Position = UDim2.new(1, -8, 0.5, 0),
     Size = UDim2.fromOffset(34, 30),
-    BackgroundColor3 = COLORS.row,
-    BackgroundTransparency = 0.15,
+    BackgroundColor3 = COLORS.sectionRow,
+    BackgroundTransparency = 0.30,
     BorderSizePixel = 0,
     AutoButtonColor = false,
     Font = Enum.Font.GothamBold,
     Text = "-",
-    TextColor3 = COLORS.text,
+    TextColor3 = COLORS.sectionText,
     TextSize = 20,
-    ZIndex = 504,
+    ZIndex = 505,
 }, statusHeader)
 addCorner(statusMinimizeButton, 10)
 
@@ -1123,30 +1141,38 @@ local statusBody = create("Frame", {
     Name = "Body",
     Position = UDim2.fromOffset(10, 44),
     Size = UDim2.new(1, -20, 1, -54),
-    BackgroundColor3 = COLORS.surface,
-    BackgroundTransparency = 0.24,
+    BackgroundColor3 = Color3.fromRGB(5, 20, 34),
+    BackgroundTransparency = 0.50,
     BorderSizePixel = 0,
     ClipsDescendants = true,
-    ZIndex = 501,
+    ZIndex = 502,
 }, statusFrame)
 addCorner(statusBody, 10)
 addStroke(statusBody, COLORS.line, 1, 0.35)
 
 local statusWidgetLabels = {}
+local function readableStatusColor(color)
+    if color == COLORS.text then return COLORS.sectionText end
+    if color == COLORS.muted then return COLORS.sectionMuted end
+    if color == COLORS.dim then return COLORS.sectionDim end
+    if color == COLORS.success then return COLORS.sectionSuccess end
+    if color == COLORS.error then return COLORS.sectionError end
+    return color
+end
 for index, key in ipairs({"General", "AFK", "Special", "Multi", "Farm", "Weapon"}) do
     local row = makeLabel(
         statusBody,
         key .. ": Waiting...",
         UDim2.fromOffset(12, 4 + (index - 1) * 29),
         UDim2.new(1, -24, 0, 27),
-        index == 1 and COLORS.text or COLORS.muted,
+        index == 1 and COLORS.sectionText or COLORS.sectionMuted,
         index == 1 and 13 or 12,
         index == 1 and Enum.Font.GothamBold or Enum.Font.GothamSemibold
     )
     row.TextTruncate = Enum.TextTruncate.AtEnd
-    row.TextStrokeColor3 = Color3.fromRGB(238, 250, 255)
-    row.TextStrokeTransparency = 0.64
-    row.ZIndex = 503
+    row.TextStrokeColor3 = Color3.fromRGB(2, 10, 18)
+    row.TextStrokeTransparency = 0.38
+    row.ZIndex = 504
     statusWidgetLabels[key] = row
 end
 
@@ -1159,7 +1185,7 @@ for index = 1, 10 do
     flake.TextTransparency = 0.18
     flake.TextStrokeColor3 = COLORS.accentDark
     flake.TextStrokeTransparency = 0.56
-    flake.ZIndex = 502
+    flake.ZIndex = 505
     table.insert(statusFlakes, flake)
     task.spawn(function()
         while statusGui.Parent and flake.Parent do
@@ -1525,19 +1551,25 @@ local function applyFrozenAccent(newAccent)
 end
 
 local function applyHubTransparency(value)
-    hubTransparencyValue = math.clamp(tonumber(value) or 0.46, 0.10, 0.80)
+    hubTransparencyValue = math.clamp(tonumber(value) or 0.62, 0.10, 0.80)
     local offsets = {
         CodexHub = 0.00,
-        Header = 0.00,
-        Sidebar = 0.06,
-        ConceptInterior = 0.10,
-        FloatingAvatarCard = 0.18,
+        Header = 0.06,
+        HeaderSquareJoin = 0.06,
+        Sidebar = 0.12,
+        SidebarTopJoin = 0.12,
+        SidebarRightJoin = 0.12,
+        ConceptInterior = 0.16,
+        ContentTopJoin = 0.16,
+        ContentLeftJoin = 0.16,
+        FloatingAvatarCard = 0.10,
         PlayerHeadshotCard = 0.08,
-        CodexWelcomeCard = -0.04,
-        Search = 0.02,
-        SectionCard = -0.06,
-        ControlRow = -0.16,
-        DropdownRow = -0.16,
+        CodexWelcomeCard = 0.00,
+        Search = 0.08,
+        HomeCategoryBar = 0.08,
+        SectionCard = 0.20,
+        ControlRow = 0.08,
+        DropdownRow = 0.08,
     }
 
     local objects = {main}
@@ -3127,7 +3159,7 @@ local categoryBar = create("Frame", {
     Name = "HomeCategoryBar",
     Size = UDim2.new(1, 0, 0, 96),
     BackgroundColor3 = COLORS.surface,
-    BackgroundTransparency = math.max(0.18, hubTransparencyValue - 0.04),
+    BackgroundTransparency = math.min(0.86, hubTransparencyValue + 0.08),
     BorderSizePixel = 0,
     ZIndex = 20,
 }, HomePage.Frame)
@@ -3574,22 +3606,22 @@ gui:SetAttribute("AntiAFKEnabled", false)
 task.spawn(function()
     while statusGui.Parent and gui.Parent do
         statusWidgetLabels.General.Text = statusLabel.Text
-        statusWidgetLabels.General.TextColor3 = statusLabel.TextColor3
+        statusWidgetLabels.General.TextColor3 = readableStatusColor(statusLabel.TextColor3)
         statusWidgetLabels.AFK.Text = antiAfkStatusLabel.Text
-        statusWidgetLabels.AFK.TextColor3 = antiAfkStatusLabel.TextColor3
+        statusWidgetLabels.AFK.TextColor3 = readableStatusColor(antiAfkStatusLabel.TextColor3)
         if state.demonRealm and state.demonRealmStatusLabel then
             statusWidgetLabels.Special.Text = state.demonRealmStatusLabel.Text
-            statusWidgetLabels.Special.TextColor3 = state.demonRealmStatusLabel.TextColor3
+            statusWidgetLabels.Special.TextColor3 = readableStatusColor(state.demonRealmStatusLabel.TextColor3)
         else
             statusWidgetLabels.Special.Text = priorityStatusLabel.Text
-            statusWidgetLabels.Special.TextColor3 = priorityStatusLabel.TextColor3
+            statusWidgetLabels.Special.TextColor3 = readableStatusColor(priorityStatusLabel.TextColor3)
         end
         statusWidgetLabels.Multi.Text = multiHitStatusLabel.Text
-        statusWidgetLabels.Multi.TextColor3 = multiHitStatusLabel.TextColor3
+        statusWidgetLabels.Multi.TextColor3 = readableStatusColor(multiHitStatusLabel.TextColor3)
         statusWidgetLabels.Farm.Text = farmStatusLabel.Text .. " | " .. nightmareStatusLabel.Text
-        statusWidgetLabels.Farm.TextColor3 = farmStatusLabel.TextColor3
+        statusWidgetLabels.Farm.TextColor3 = readableStatusColor(farmStatusLabel.TextColor3)
         statusWidgetLabels.Weapon.Text = weaponStatusLabel.Text
-        statusWidgetLabels.Weapon.TextColor3 = weaponStatusLabel.TextColor3
+        statusWidgetLabels.Weapon.TextColor3 = readableStatusColor(weaponStatusLabel.TextColor3)
         task.wait(0.20)
     end
 end)
