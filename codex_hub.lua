@@ -77,6 +77,12 @@ local COLORS = {
     -- Deep emerald stays readable over the bright, translucent snow theme.
     success = Color3.fromRGB(24, 118, 82),
     error = Color3.fromRGB(239, 128, 137),
+    sectionRow = Color3.fromRGB(9, 25, 39),
+    sectionText = Color3.fromRGB(239, 250, 255),
+    sectionMuted = Color3.fromRGB(188, 218, 232),
+    sectionDim = Color3.fromRGB(142, 184, 205),
+    sectionSuccess = Color3.fromRGB(105, 255, 196),
+    sectionError = Color3.fromRGB(255, 151, 160),
 }
 
 local UI_FONT = Enum.Font.GothamBold
@@ -106,7 +112,7 @@ local function addStroke(parent, color, thickness, transparency)
 end
 
 local function makeLabel(parent, text, position, size, color, textSize, font)
-    return create("TextLabel", {
+    local label = create("TextLabel", {
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Position = position,
@@ -119,6 +125,31 @@ local function makeLabel(parent, text, position, size, color, textSize, font)
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
     }, parent)
+    if parent and parent:FindFirstAncestor("SectionCard") then
+        local adapting = false
+        local function adaptSectionColor()
+            if adapting or not label.Parent then
+                return
+            end
+            local current = label.TextColor3
+            local replacement = current == COLORS.text and COLORS.sectionText
+                or (current == COLORS.muted and COLORS.sectionMuted)
+                or (current == COLORS.dim and COLORS.sectionDim)
+                or (current == COLORS.success and COLORS.sectionSuccess)
+                or (current == COLORS.error and COLORS.sectionError)
+                or nil
+            if replacement and current ~= replacement then
+                adapting = true
+                label.TextColor3 = replacement
+                adapting = false
+            end
+        end
+        label.TextStrokeColor3 = Color3.fromRGB(2, 10, 18)
+        label.TextStrokeTransparency = 0.52
+        adaptSectionColor()
+        label:GetPropertyChangedSignal("TextColor3"):Connect(adaptSectionColor)
+    end
+    return label
 end
 
 local function safeCallback(callback, ...)
@@ -1651,8 +1682,8 @@ local function makeControlRow(section, height)
         Name = "ControlRow",
         LayoutOrder = section.NextOrder,
         Size = UDim2.new(1, 0, 0, height),
-        BackgroundColor3 = Color3.fromRGB(188, 213, 226),
-        BackgroundTransparency = math.max(0.30, hubTransparencyValue - 0.08),
+        BackgroundColor3 = COLORS.sectionRow,
+        BackgroundTransparency = 0.70,
         BorderSizePixel = 0,
     }, section.Body)
     addCorner(row, 7)
@@ -1666,8 +1697,8 @@ function SectionMethods:AddLabel(text)
     local row = makeControlRow(self, 36)
     local label = makeLabel(row, text, UDim2.fromOffset(12, 0), UDim2.new(1, -24, 1, 0), COLORS.muted, 13, Enum.Font.GothamMedium)
     label.TextWrapped = true
-    label.TextStrokeColor3 = Color3.fromRGB(238, 250, 255)
-    label.TextStrokeTransparency = 0.72
+    label.TextStrokeColor3 = Color3.fromRGB(2, 10, 18)
+    label.TextStrokeTransparency = 0.52
     registerSearchItem(self.Page, row, text)
     return label
 end
@@ -1698,10 +1729,10 @@ function SectionMethods:AddButton(options)
     }, row)
 
     track(button.MouseEnter:Connect(function()
-        TweenService:Create(row, TweenInfo.new(0.12), {BackgroundTransparency = math.max(0, hubTransparencyValue - 0.18)}):Play()
+        TweenService:Create(row, TweenInfo.new(0.12), {BackgroundTransparency = 0.52}):Play()
     end))
     track(button.MouseLeave:Connect(function()
-        TweenService:Create(row, TweenInfo.new(0.12), {BackgroundTransparency = math.max(0, hubTransparencyValue - 0.10)}):Play()
+        TweenService:Create(row, TweenInfo.new(0.12), {BackgroundTransparency = 0.70}):Play()
     end))
     track(button.MouseButton1Click:Connect(function()
         safeCallback(options.Callback)
@@ -1802,8 +1833,8 @@ function SectionMethods:AddDropdown(options)
         LayoutOrder = self.NextOrder,
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundColor3 = Color3.fromRGB(188, 213, 226),
-        BackgroundTransparency = math.max(0.30, hubTransparencyValue - 0.08),
+        BackgroundColor3 = COLORS.sectionRow,
+        BackgroundTransparency = 0.70,
         BorderSizePixel = 0,
     }, self.Body)
     addCorner(row, 7)
@@ -1838,8 +1869,8 @@ function SectionMethods:AddDropdown(options)
         Visible = false,
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundColor3 = COLORS.dropdown,
-        BackgroundTransparency = 0.08,
+        BackgroundColor3 = Color3.fromRGB(7, 20, 33),
+        BackgroundTransparency = 0.22,
         BorderSizePixel = 0,
     }, row)
     create("UIListLayout", {
@@ -1873,12 +1904,12 @@ function SectionMethods:AddDropdown(options)
                 LayoutOrder = index,
                 AutoButtonColor = false,
                 Size = UDim2.new(1, 0, 0, 34),
-                BackgroundColor3 = COLORS.row,
-                BackgroundTransparency = 0.25,
+                BackgroundColor3 = COLORS.sectionRow,
+                BackgroundTransparency = 0.30,
                 BorderSizePixel = 0,
                 Font = Enum.Font.GothamMedium,
                 Text = "  " .. tostring(value),
-                TextColor3 = COLORS.muted,
+                TextColor3 = COLORS.sectionMuted,
                 TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left,
             }, optionHolder)
@@ -2033,15 +2064,15 @@ function SectionMethods:AddInput(options)
     local box = create("TextBox", {
         Position = UDim2.fromOffset(10, 33),
         Size = UDim2.new(1, -20, 0, 34),
-        BackgroundColor3 = COLORS.dropdown,
-        BackgroundTransparency = 0.05,
+        BackgroundColor3 = Color3.fromRGB(7, 20, 33),
+        BackgroundTransparency = 0.24,
         BorderSizePixel = 0,
         ClearTextOnFocus = options.ClearOnFocus == true,
         Font = Enum.Font.GothamMedium,
         PlaceholderText = options.Placeholder or "Enter text...",
-        PlaceholderColor3 = COLORS.dim,
+        PlaceholderColor3 = COLORS.sectionDim,
         Text = tostring(options.Default or ""),
-        TextColor3 = COLORS.text,
+        TextColor3 = COLORS.sectionText,
         TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left,
     }, row)
@@ -2103,7 +2134,7 @@ function PageMethods:AddSection(title, side)
         BorderSizePixel = 0,
         Image = SETTINGS.SectionBackgroundImageId,
         ImageColor3 = Color3.fromRGB(235, 247, 255),
-        ImageTransparency = 0.10,
+        ImageTransparency = 0.02,
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 1,
     }, card)
@@ -2140,7 +2171,7 @@ function PageMethods:AddSection(title, side)
         LayoutOrder = 1,
         Size = UDim2.new(1, 0, 0, 38),
         BackgroundColor3 = Color3.fromRGB(7, 20, 33),
-        BackgroundTransparency = 0.30,
+        BackgroundTransparency = 0.64,
         BorderSizePixel = 0,
         ZIndex = 2,
     }, sectionContent)
