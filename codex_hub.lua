@@ -48,6 +48,7 @@ local SETTINGS = {
     PlayerHeadshotEnabled = true,
     -- The decal is currently restricted, so use its public thumbnail until Asset Access is set to Open Use.
     ProfileLogoImageId = "rbxthumb://type=Asset&id=151878913&w=420&h=420", -- Clear to restore the Roblox avatar.
+    SectionBackgroundImageId = "rbxthumb://type=Asset&id=134413735110455&w=768&h=432",
 }
 
 -- Keep the legacy storage path so existing profiles and autoload selections survive the rebrand.
@@ -541,6 +542,25 @@ create("UIGradient", {
         ColorSequenceKeypoint.new(1.00, Color3.fromRGB(207, 228, 239)),
     }),
 }, header)
+do
+    local headerJoin = create("Frame", {
+        Name = "HeaderSquareJoin",
+        Position = UDim2.new(0, 0, 1, -12),
+        Size = UDim2.new(1, 0, 0, 12),
+        BackgroundColor3 = COLORS.sidebar,
+        BackgroundTransparency = hubTransparencyValue,
+        BorderSizePixel = 0,
+        ZIndex = 20,
+    }, header)
+    create("UIGradient", {
+        Rotation = 0,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(252, 254, 255)),
+            ColorSequenceKeypoint.new(0.55, Color3.fromRGB(229, 241, 248)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(207, 228, 239)),
+        }),
+    }, headerJoin)
+end
 
 local brandLogo = create("Frame", {
     Name = "CodexLogo",
@@ -664,6 +684,32 @@ create("UIGradient", {
         ColorSequenceKeypoint.new(1.00, Color3.fromRGB(198, 223, 235)),
     }),
 }, sidebar)
+do
+    local sidebarTopJoin = create("Frame", {
+        Name = "SidebarTopJoin",
+        Size = UDim2.new(1, 0, 0, 12),
+        BackgroundColor3 = Color3.fromRGB(247, 252, 255),
+        BackgroundTransparency = 0.52,
+        BorderSizePixel = 0,
+    }, sidebar)
+    local sidebarRightJoin = create("Frame", {
+        Name = "SidebarRightJoin",
+        Position = UDim2.new(1, -10, 0, 0),
+        Size = UDim2.new(0, 10, 1, 0),
+        BackgroundColor3 = COLORS.sidebar,
+        BackgroundTransparency = 0.52,
+        BorderSizePixel = 0,
+    }, sidebar)
+    create("UIGradient", {
+        Rotation = 90,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(247, 252, 255)),
+            ColorSequenceKeypoint.new(0.58, Color3.fromRGB(220, 237, 245)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(198, 223, 235)),
+        }),
+    }, sidebarRightJoin)
+    sidebarTopJoin.ZIndex = sidebarRightJoin.ZIndex
+end
 
 create("Frame", {
     Position = UDim2.fromOffset(62, 46),
@@ -695,6 +741,40 @@ create("UIGradient", {
         NumberSequenceKeypoint.new(1.00, 0.30),
     }),
 }, contentBackdrop)
+do
+    local function styleContentJoin(join)
+        create("UIGradient", {
+            Rotation = 90,
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0.00, Color3.fromRGB(250, 253, 255)),
+                ColorSequenceKeypoint.new(0.55, Color3.fromRGB(226, 240, 247)),
+                ColorSequenceKeypoint.new(1.00, Color3.fromRGB(203, 226, 238)),
+            }),
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0.00, 0.08),
+                NumberSequenceKeypoint.new(1.00, 0.30),
+            }),
+        }, join)
+    end
+    local contentTopJoin = create("Frame", {
+        Name = "ContentTopJoin",
+        Size = UDim2.new(1, 0, 0, 12),
+        BackgroundColor3 = COLORS.surface,
+        BackgroundTransparency = 0.56,
+        BorderSizePixel = 0,
+        ZIndex = 1,
+    }, contentBackdrop)
+    local contentLeftJoin = create("Frame", {
+        Name = "ContentLeftJoin",
+        Size = UDim2.new(0, 12, 1, 0),
+        BackgroundColor3 = COLORS.surface,
+        BackgroundTransparency = 0.56,
+        BorderSizePixel = 0,
+        ZIndex = 1,
+    }, contentBackdrop)
+    styleContentJoin(contentTopJoin)
+    styleContentJoin(contentLeftJoin)
+end
 
 local featuresLabel = makeLabel(sidebar, "", UDim2.fromOffset(0, 0), UDim2.fromOffset(1, 1), COLORS.dim, 10, Enum.Font.GothamBold)
 featuresLabel.Visible = false
@@ -1571,12 +1651,12 @@ local function makeControlRow(section, height)
         Name = "ControlRow",
         LayoutOrder = section.NextOrder,
         Size = UDim2.new(1, 0, 0, height),
-        BackgroundColor3 = COLORS.row,
-        BackgroundTransparency = math.max(0.15, hubTransparencyValue - 0.16),
+        BackgroundColor3 = Color3.fromRGB(188, 213, 226),
+        BackgroundTransparency = math.max(0.30, hubTransparencyValue - 0.08),
         BorderSizePixel = 0,
     }, section.Body)
     addCorner(row, 7)
-    addStroke(row, COLORS.line, 1, 0.72)
+    addStroke(row, COLORS.accentDark, 1, 0.58)
     return row
 end
 
@@ -1722,12 +1802,12 @@ function SectionMethods:AddDropdown(options)
         LayoutOrder = self.NextOrder,
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundColor3 = COLORS.row,
-        BackgroundTransparency = math.max(0.15, hubTransparencyValue - 0.16),
+        BackgroundColor3 = Color3.fromRGB(188, 213, 226),
+        BackgroundTransparency = math.max(0.30, hubTransparencyValue - 0.08),
         BorderSizePixel = 0,
     }, self.Body)
     addCorner(row, 7)
-    addStroke(row, COLORS.line, 1, 0.72)
+    addStroke(row, COLORS.accentDark, 1, 0.58)
     create("UIListLayout", {
         Padding = UDim.new(0, 0),
         SortOrder = Enum.SortOrder.LayoutOrder,
@@ -2007,31 +2087,82 @@ function PageMethods:AddSection(title, side)
         Name = "SectionCard",
         Size = UDim2.new(1, -4, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundColor3 = COLORS.surface,
-        BackgroundTransparency = math.max(0, hubTransparencyValue - 0.06),
+        BackgroundColor3 = Color3.fromRGB(8, 21, 34),
+        BackgroundTransparency = 0.06,
         BorderSizePixel = 0,
         ClipsDescendants = true,
     }, parentColumn)
     addCorner(card, 10)
-    addStroke(card, COLORS.line, 1, 0.46)
+    addStroke(card, COLORS.accentDark, 1, 0.16)
+
+    local sectionTexture = create("ImageLabel", {
+        Name = "SectionBackground",
+        Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Image = SETTINGS.SectionBackgroundImageId,
+        ImageColor3 = Color3.fromRGB(235, 247, 255),
+        ImageTransparency = 0.10,
+        ScaleType = Enum.ScaleType.Crop,
+        ZIndex = 1,
+    }, card)
+    addCorner(sectionTexture, 10)
+    create("UIGradient", {
+        Name = "SectionTextureShade",
+        Rotation = 0,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(191, 224, 241)),
+            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(110, 164, 194)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(45, 91, 121)),
+        }),
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0.00, 0.12),
+            NumberSequenceKeypoint.new(0.52, 0.02),
+            NumberSequenceKeypoint.new(1.00, 0.18),
+        }),
+    }, sectionTexture)
+
+    local sectionContent = create("Frame", {
+        Name = "SectionContent",
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+    }, card)
     create("UIListLayout", {
         Padding = UDim.new(0, 0),
         SortOrder = Enum.SortOrder.LayoutOrder,
-    }, card)
+    }, sectionContent)
 
     local sectionHeader = create("Frame", {
         LayoutOrder = 1,
         Size = UDim2.new(1, 0, 0, 38),
-        BackgroundTransparency = 1,
+        BackgroundColor3 = Color3.fromRGB(7, 20, 33),
+        BackgroundTransparency = 0.30,
         BorderSizePixel = 0,
-    }, card)
-    makeLabel(sectionHeader, title or "Section", UDim2.fromOffset(12, 0), UDim2.new(1, -24, 1, -2), COLORS.text, 14, Enum.Font.GothamBold)
+        ZIndex = 2,
+    }, sectionContent)
+    local sectionTitle = makeLabel(
+        sectionHeader,
+        title or "Section",
+        UDim2.fromOffset(12, 0),
+        UDim2.new(1, -24, 1, -2),
+        Color3.fromRGB(239, 250, 255),
+        14,
+        Enum.Font.GothamBold
+    )
+    sectionTitle.TextStrokeColor3 = Color3.fromRGB(3, 13, 22)
+    sectionTitle.TextStrokeTransparency = 0.24
+    sectionTitle.ZIndex = 3
     create("Frame", {
         Position = UDim2.new(0, 12, 1, -1),
         Size = UDim2.new(1, -24, 0, 1),
-        BackgroundColor3 = COLORS.line,
-        BackgroundTransparency = 0.18,
+        BackgroundColor3 = COLORS.accent,
+        BackgroundTransparency = 0.06,
         BorderSizePixel = 0,
+        ZIndex = 3,
     }, sectionHeader)
 
     local body = create("Frame", {
@@ -2040,7 +2171,8 @@ function PageMethods:AddSection(title, side)
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-    }, card)
+        ZIndex = 2,
+    }, sectionContent)
     create("UIPadding", {
         PaddingTop = UDim.new(0, 6),
         PaddingBottom = UDim.new(0, 6),
