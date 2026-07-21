@@ -47,7 +47,7 @@ local SETTINGS = {
     AvatarPreviewEnabled = true,
     PlayerHeadshotEnabled = true,
     -- The decal is currently restricted, so use its public thumbnail until Asset Access is set to Open Use.
-    ProfileLogoImageId = "rbxthumb://type=Asset&id=75289031703314&w=420&h=420", -- Clear to restore the Roblox avatar.
+    ProfileLogoImageId = "rbxassetid://151878913", -- Clear to restore the Roblox avatar.
 }
 
 -- Keep the legacy storage path so existing profiles and autoload selections survive the rebrand.
@@ -168,7 +168,7 @@ local function destroyOldGui()
         table.insert(containers, playerGui)
     end
 
-    for _, guiName in ipairs({SETTINGS.GuiName, SETTINGS.GuiName .. "_Snow", SETTINGS.GuiName .. "_Notifications"}) do
+    for _, guiName in ipairs({SETTINGS.GuiName, SETTINGS.GuiName .. "_Snow", SETTINGS.GuiName .. "_Notifications", SETTINGS.GuiName .. "_Status"}) do
         for _, container in ipairs(containers) do
             while true do
                 local oldGui = container:FindFirstChild(guiName)
@@ -877,10 +877,213 @@ create("UIListLayout", {
     SortOrder = Enum.SortOrder.LayoutOrder,
 }, notificationHolder)
 
+local statusGui = create("ScreenGui", {
+    Name = SETTINGS.GuiName .. "_Status",
+    ResetOnSpawn = false,
+    IgnoreGuiInset = true,
+    ZIndexBehavior = Enum.ZIndexBehavior.Global,
+    DisplayOrder = 1003,
+}, gui.Parent)
+
+local statusFrame = create("Frame", {
+    Name = "FloatingLiveStatus",
+    AnchorPoint = Vector2.new(1, 0),
+    Position = UDim2.new(1, -24, 0, 72),
+    Size = UDim2.fromOffset(360, 236),
+    BackgroundColor3 = COLORS.shell,
+    BackgroundTransparency = 0.13,
+    BorderSizePixel = 0,
+    Active = true,
+    ZIndex = 500,
+}, statusGui)
+addCorner(statusFrame, 14)
+local statusStroke = addStroke(statusFrame, COLORS.accentDark, 2, 0.08)
+create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, COLORS.surface),
+        ColorSequenceKeypoint.new(0.55, COLORS.surface2),
+        ColorSequenceKeypoint.new(1, COLORS.accentDark:Lerp(COLORS.shell, 0.55)),
+    }),
+    Rotation = 130,
+}, statusFrame)
+
+local statusHeader = create("Frame", {
+    Name = "Header",
+    Size = UDim2.new(1, 0, 0, 44),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Active = true,
+    ZIndex = 502,
+}, statusFrame)
+local statusTitle = makeLabel(statusHeader, utf8.char(0x2744) .. "  CODEX LIVE STATUS", UDim2.fromOffset(14, 0), UDim2.new(1, -62, 1, 0), COLORS.text, 15, Enum.Font.GothamBold)
+statusTitle.ZIndex = 503
+local statusMinimizeButton = create("TextButton", {
+    Name = "Minimize",
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -8, 0.5, 0),
+    Size = UDim2.fromOffset(34, 30),
+    BackgroundColor3 = COLORS.row,
+    BackgroundTransparency = 0.15,
+    BorderSizePixel = 0,
+    AutoButtonColor = false,
+    Font = Enum.Font.GothamBold,
+    Text = "-",
+    TextColor3 = COLORS.text,
+    TextSize = 20,
+    ZIndex = 504,
+}, statusHeader)
+addCorner(statusMinimizeButton, 10)
+
+local statusBody = create("Frame", {
+    Name = "Body",
+    Position = UDim2.fromOffset(10, 44),
+    Size = UDim2.new(1, -20, 1, -54),
+    BackgroundColor3 = COLORS.surface,
+    BackgroundTransparency = 0.24,
+    BorderSizePixel = 0,
+    ClipsDescendants = true,
+    ZIndex = 501,
+}, statusFrame)
+addCorner(statusBody, 10)
+addStroke(statusBody, COLORS.line, 1, 0.35)
+
+local statusWidgetLabels = {}
+for index, key in ipairs({"General", "AFK", "Special", "Multi", "Farm", "Weapon"}) do
+    local row = makeLabel(
+        statusBody,
+        key .. ": Waiting...",
+        UDim2.fromOffset(12, 4 + (index - 1) * 29),
+        UDim2.new(1, -24, 0, 27),
+        index == 1 and COLORS.text or COLORS.muted,
+        index == 1 and 13 or 12,
+        index == 1 and Enum.Font.GothamBold or Enum.Font.GothamSemibold
+    )
+    row.TextTruncate = Enum.TextTruncate.AtEnd
+    row.ZIndex = 503
+    statusWidgetLabels[key] = row
+end
+
+local statusFlakes = {}
+local statusRandom = Random.new()
+for index = 1, 10 do
+    local flake = makeLabel(statusFrame, utf8.char(index % 3 == 0 and 0x2746 or 0x2744), UDim2.fromOffset(0, 0), UDim2.fromOffset(24, 24), SNOW_WHITE, statusRandom:NextInteger(13, 22), Enum.Font.GothamBold)
+    flake.Name = "StatusSnowflake" .. index
+    flake.TextXAlignment = Enum.TextXAlignment.Center
+    flake.TextTransparency = 0.18
+    flake.TextStrokeColor3 = COLORS.accentDark
+    flake.TextStrokeTransparency = 0.56
+    flake.ZIndex = 502
+    table.insert(statusFlakes, flake)
+    task.spawn(function()
+        while statusGui.Parent and flake.Parent do
+            flake.Position = UDim2.fromOffset(statusRandom:NextInteger(4, 332), statusRandom:NextInteger(-35, -10))
+            flake.Rotation = statusRandom:NextInteger(-35, 35)
+            local tween = TweenService:Create(flake, TweenInfo.new(statusRandom:NextNumber(3.4, 6.4), Enum.EasingStyle.Linear), {
+                Position = UDim2.fromOffset(statusRandom:NextInteger(4, 332), 240),
+                Rotation = flake.Rotation + statusRandom:NextInteger(80, 220),
+            })
+            tween:Play()
+            tween.Completed:Wait()
+            task.wait(statusRandom:NextNumber(0.08, 0.55))
+        end
+    end)
+end
+
+local statusMinimized = false
+local statusDragging = false
+local statusDragMoved = false
+local statusDragStart = nil
+local statusDragPosition = nil
+local function clampStatusWidget(position, size)
+    local camera = workspace.CurrentCamera
+    if not camera then return position end
+    local viewport = camera.ViewportSize
+    local width = size.X.Offset
+    local height = size.Y.Offset
+    local x = viewport.X * position.X.Scale + position.X.Offset
+    local y = viewport.Y * position.Y.Scale + position.Y.Offset
+    return UDim2.fromOffset(
+        math.clamp(x, width + 8, viewport.X - 8),
+        math.clamp(y, 8, math.max(8, viewport.Y - height - 8))
+    )
+end
+
+local function setStatusMinimized(value)
+    statusMinimized = value == true
+    statusTitle.Visible = not statusMinimized
+    statusBody.Visible = not statusMinimized
+    for _, flake in ipairs(statusFlakes) do
+        flake.Visible = not statusMinimized
+    end
+    if statusMinimized then
+        statusFrame.Size = UDim2.fromOffset(58, 58)
+        statusFrame.BackgroundTransparency = 0.05
+        statusMinimizeButton.Parent = statusFrame
+        statusMinimizeButton.AnchorPoint = Vector2.new(0, 0)
+        statusMinimizeButton.Position = UDim2.fromOffset(0, 0)
+        statusMinimizeButton.Size = UDim2.fromScale(1, 1)
+        statusMinimizeButton.BackgroundTransparency = 1
+        statusMinimizeButton.Text = utf8.char(0x2744)
+        statusMinimizeButton.TextSize = 31
+        statusStroke.Thickness = 2.5
+    else
+        statusFrame.Size = UDim2.fromOffset(360, 236)
+        statusFrame.BackgroundTransparency = 0.13
+        statusMinimizeButton.Parent = statusHeader
+        statusMinimizeButton.AnchorPoint = Vector2.new(1, 0.5)
+        statusMinimizeButton.Position = UDim2.new(1, -8, 0.5, 0)
+        statusMinimizeButton.Size = UDim2.fromOffset(34, 30)
+        statusMinimizeButton.BackgroundTransparency = 0.15
+        statusMinimizeButton.Text = "-"
+        statusMinimizeButton.TextSize = 20
+        statusStroke.Thickness = 2
+    end
+    statusFrame.Position = clampStatusWidget(statusFrame.Position, statusFrame.Size)
+end
+
+local function beginStatusDrag(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        statusDragging = true
+        statusDragMoved = false
+        statusDragStart = input.Position
+        statusDragPosition = statusFrame.Position
+    end
+end
+track(statusHeader.InputBegan:Connect(beginStatusDrag))
+track(statusMinimizeButton.InputBegan:Connect(function(input)
+    if statusMinimized then beginStatusDrag(input) end
+end))
+track(UserInputService.InputChanged:Connect(function(input)
+    if statusDragging and statusDragStart and statusDragPosition and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - statusDragStart
+        if delta.Magnitude > 5 then
+            statusDragMoved = true
+        end
+        local proposed = UDim2.new(statusDragPosition.X.Scale, statusDragPosition.X.Offset + delta.X, statusDragPosition.Y.Scale, statusDragPosition.Y.Offset + delta.Y)
+        statusFrame.Position = clampStatusWidget(proposed, statusFrame.Size)
+    end
+end))
+track(UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        statusDragging = false
+        statusDragStart = nil
+        statusDragPosition = nil
+    end
+end))
+track(statusMinimizeButton.MouseButton1Click:Connect(function()
+    if statusDragMoved then
+        statusDragMoved = false
+        return
+    end
+    playToggleClick(not statusMinimized)
+    setStatusMinimized(not statusMinimized)
+end))
+
 local Window = {
     Gui = gui,
     SnowGui = snowGui,
     NotificationGui = notificationGui,
+    StatusGui = statusGui,
     NotificationHolder = notificationHolder,
     Main = main,
     Pages = {},
@@ -1713,6 +1916,7 @@ end
 local PageMethods = {}
 local NAV_ICONS = {
     Home = utf8.char(0x2302),
+    Tools = utf8.char(0x2692),
     Settings = utf8.char(0x2699),
 }
 
@@ -2121,6 +2325,9 @@ function Window:Destroy()
     end
     if notificationGui.Parent then
         notificationGui:Destroy()
+    end
+    if statusGui.Parent then
+        statusGui:Destroy()
     end
 end
 
@@ -2627,6 +2834,7 @@ end)
 -- Game controls stay inside Home categories; Settings remains configuration-only.
 local function buildReviveFeatures()
 local HomePage = Window:AddPage("Home")
+local ToolsPage = Window:AddPage("Tools")
 
 -- Home uses a compact horizontal category strip so the first screen can focus on
 -- overnight automation without burying weapon and upgrade controls below it.
@@ -2781,10 +2989,14 @@ local UpgradeSection = WeaponsPage:AddSection("Sword Automation", "Left")
 local WeaponInfoSection = WeaponsPage:AddSection("Owned Weapons", "Right")
 local ChallengeSection = ProgressPage:AddSection("Challenges", "Left")
 local RebirthSection = ProgressPage:AddSection("Auto Rebirth", "Left")
+local SoulRingSection = ProgressPage:AddSection("Soul Ring", "Right")
 local RewardSection = ProgressPage:AddSection("Reward Automation", "Right")
 local VisualSection = VisualsPage:AddSection("Character Visuals", "Left")
 local VisualInfoSection = VisualsPage:AddSection("Visual Status", "Right")
 local NotificationSection = VisualsPage:AddSection("Hub Notifications", "Right")
+local OutfitSection = ToolsPage:AddSection("Local Outfit Preview", "Left")
+local FrozenPresetSection = ToolsPage:AddSection("Frozen Expedition Preset", "Right")
+local ToolsInfoSection = ToolsPage:AddSection("Tools Status", "Right")
 
 selectHomeCategory("Overnight")
 
@@ -2795,12 +3007,17 @@ local multiHitStatusLabel = LiveSection:AddLabel("Multi Hit: Disabled")
 local reaperStatusLabel = LiveSection:AddLabel("Reaper: Reading unlock state...")
 local cursedKingStatusLabel = LiveSection:AddLabel("Cursed King: Reading unlock state...")
 local nightmareStatusLabel = LiveSection:AddLabel("Nightmare: Reading Death Tower state...")
+local deathKingStatusLabel = LiveSection:AddLabel("Death King: Reading unlock state...")
 local priorityStatusLabel = LiveSection:AddLabel("Special Priority: Disabled")
 local tweenStatusLabel = LiveSection:AddLabel("Tween: Enemy 1 selected")
 local weaponStatusLabel = WeaponInfoSection:AddLabel("Sword: Reading inventory...")
 local visualStatusLabel = VisualInfoSection:AddLabel("Visuals: Local-only and reversible")
 VisualInfoSection:AddLabel("All character effects are local-only, reversible, and reapplied after respawn.")
 local discordReminderStatusLabel = NotificationSection:AddLabel("Discord Reminder: Every 15 minutes")
+local outfitStatusLabel = ToolsInfoSection:AddLabel("Outfit: Your Roblox avatar")
+local soulRingStatusLabel = SoulRingSection:AddLabel("Soul Ring: Reading slot 1...")
+local soulRingCurrencyLabel = SoulRingSection:AddLabel("Soul Stones: Reading... | Rerolls: Reading...")
+ToolsInfoSection:AddLabel("Catalog previews and the frozen preset are client-only. Other players keep seeing your server avatar.")
 
 local function setReviveStatus(message, success)
     statusLabel.Text = "Status: " .. tostring(message)
@@ -2824,10 +3041,13 @@ local REMOTE_NAMES = {
     "claimSoulSpawner",
     "claimTimeLimitBossReward",
     "claimChallengeReward",
+    "rebirth",
     "SetAutoRebirth",
     "claimReaperPityReward",
     "rollSigil",
     "SetAutoSigilRarity",
+    "enhanceSoulRing",
+    "rerollSoulRing",
 }
 
 remoteLabel.Text = "Remotes: 0 / " .. tostring(#REMOTE_NAMES) .. " ready"
@@ -2920,6 +3140,7 @@ local state = {
     multiHit = false,
     reaper = false,
     cursedKing = false,
+    deathKing = false,
     nightmare = false,
     specialPriority = false,
     priorityMulti = false,
@@ -2936,6 +3157,7 @@ local state = {
     autoTween = false,
     autoEquipBest = false,
     autoRebirth = false,
+    autoSoulRing = false,
     discordReminder = true,
 }
 
@@ -2990,6 +3212,24 @@ antiAfkControl = OvernightSection:AddToggle({
 })
 gui:SetAttribute("AntiAFKEnabled", false)
 
+task.spawn(function()
+    while statusGui.Parent and gui.Parent do
+        statusWidgetLabels.General.Text = statusLabel.Text
+        statusWidgetLabels.General.TextColor3 = statusLabel.TextColor3
+        statusWidgetLabels.AFK.Text = antiAfkStatusLabel.Text
+        statusWidgetLabels.AFK.TextColor3 = antiAfkStatusLabel.TextColor3
+        statusWidgetLabels.Special.Text = priorityStatusLabel.Text
+        statusWidgetLabels.Special.TextColor3 = priorityStatusLabel.TextColor3
+        statusWidgetLabels.Multi.Text = multiHitStatusLabel.Text
+        statusWidgetLabels.Multi.TextColor3 = multiHitStatusLabel.TextColor3
+        statusWidgetLabels.Farm.Text = farmStatusLabel.Text .. " | " .. nightmareStatusLabel.Text
+        statusWidgetLabels.Farm.TextColor3 = farmStatusLabel.TextColor3
+        statusWidgetLabels.Weapon.Text = weaponStatusLabel.Text
+        statusWidgetLabels.Weapon.TextColor3 = weaponStatusLabel.TextColor3
+        task.wait(0.20)
+    end
+end)
+
 local function performAntiAfkPulse()
     local camera = workspace.CurrentCamera
     local cameraCFrame = camera and camera.CFrame or CFrame.new()
@@ -3032,6 +3272,7 @@ OvernightSection:AddButton({
 
 local overnightMultiHitControl
 local overnightReaperControl
+local overnightDeathKingControl
 local overnightCursedKingControl
 local overnightNightmareControl
 local overnightSpecialPriorityControl
@@ -3039,11 +3280,13 @@ local overnightBossFarmControl
 local overnightAutoEquipControl
 local overnightAutoUpgradeControl
 local overnightAutoRebirthControl
+local overnightAutoSoulRingControl
 
 local reaperBattleStore = nil
 local rebirthStore = nil
 local reaperUnlockLevel = 3
 local reaperInterval = 20
+local redDragonUnlockLevel = 5
 local greenDragonUnlockLevel = 5
 local nightmareUnlockLevel = 15
 local rebirthTowerLevelRatio = 5
@@ -3053,6 +3296,7 @@ pcall(function()
     local globalConfig = require(ReplicatedStorage:WaitForChild("gen_config"):WaitForChild("tbglobalconfig"))
     reaperUnlockLevel = tonumber(globalConfig.unlock_reaper_main_level_require) or reaperUnlockLevel
     reaperInterval = tonumber(globalConfig.static_reaper_interval_time) or reaperInterval
+    redDragonUnlockLevel = tonumber(globalConfig.unlock_red_dragon_main_level_require) or redDragonUnlockLevel
     greenDragonUnlockLevel = tonumber(globalConfig.unlock_green_dragon_main_level_require) or greenDragonUnlockLevel
     nightmareUnlockLevel = tonumber(globalConfig.unlock_tower_main_level_require) or nightmareUnlockLevel
     rebirthTowerLevelRatio = tonumber(globalConfig.rebirth_tower_level_ratio) or rebirthTowerLevelRatio
@@ -3118,11 +3362,16 @@ end
 
 task.defer(refreshReaperStatus)
 
+local RED_DRAGON_MODE = 1
 local GREEN_DRAGON_MODE = 2
 local NIGHTMARE_MODE = 3
+local deathKingLevelAdd = 0
 local cursedKingLevelAdd = 0
 local nightmareLevelAdd = 0
-local specialLastStart = {[GREEN_DRAGON_MODE] = 0, [NIGHTMARE_MODE] = 0}
+local specialLastStart = {[RED_DRAGON_MODE] = 0, [GREEN_DRAGON_MODE] = 0, [NIGHTMARE_MODE] = 0}
+local multiHitNeedsBootstrap = true
+local nightmarePortalPrimeRunning = false
+local nightmarePortalPrimedCharacter = nil
 local priority = {
     target = "Nightmare",
     levelAdd = 0,
@@ -3133,7 +3382,7 @@ local priority = {
     nextMode = NIGHTMARE_MODE,
     activeMode = nil,
     activeLevelBefore = 0,
-    lastLevels = {[GREEN_DRAGON_MODE] = 0, [NIGHTMARE_MODE] = 0},
+    lastLevels = {[RED_DRAGON_MODE] = 0, [GREEN_DRAGON_MODE] = 0, [NIGHTMARE_MODE] = 0},
     seenResultSerial = 0,
     nextStartAt = 0,
     multiEndAt = 0,
@@ -3150,8 +3399,11 @@ local function getSpecialBossState(mode)
     local autoMode = tonumber(readAtomValue(reaperBattleStore, "AtomAutoChallengeMode")) or 0
     local battleState = tonumber(readAtomValue(reaperBattleStore, "AtomBattleState")) or 0
     local isNightmare = mode == NIGHTMARE_MODE
-    local requiredMainLevel = isNightmare and nightmareUnlockLevel or greenDragonUnlockLevel
-    local atomName = isNightmare and "AtomTowerLevel" or "AtomGreenDragonLevel"
+    local isDeathKing = mode == RED_DRAGON_MODE
+    local requiredMainLevel = isNightmare and nightmareUnlockLevel
+        or (isDeathKing and redDragonUnlockLevel or greenDragonUnlockLevel)
+    local atomName = isNightmare and "AtomTowerLevel"
+        or (isDeathKing and "AtomRedDragonLevel" or "AtomGreenDragonLevel")
     return {
         Unlocked = mainLevel >= requiredMainLevel,
         MainLevel = mainLevel,
@@ -3166,12 +3418,142 @@ local function getSpecialBossState(mode)
     }
 end
 
+local function getDeathKingState()
+    return getSpecialBossState(RED_DRAGON_MODE)
+end
+
 local function getCursedKingState()
     return getSpecialBossState(GREEN_DRAGON_MODE)
 end
 
+local function refreshDeathKingStatus()
+    local info = getDeathKingState()
+    if not info.Unlocked then
+        deathKingStatusLabel.Text = "Death King: Requires Main Level " .. info.RequiredMainLevel .. " | Current " .. info.MainLevel
+        deathKingStatusLabel.TextColor3 = COLORS.error
+    elseif state.deathKing then
+        local method = info.NativeAutoAvailable and "Native Auto" or "Hub Auto"
+        deathKingStatusLabel.Text = "Death King: " .. method .. " " .. levelAddText(deathKingLevelAdd) .. " | Level " .. info.Level
+        deathKingStatusLabel.TextColor3 = COLORS.success
+    else
+        deathKingStatusLabel.Text = "Death King: Unlocked | Auto disabled | Level " .. info.Level
+        deathKingStatusLabel.TextColor3 = COLORS.muted
+    end
+    return info
+end
+
 local function getNightmareState()
     return getSpecialBossState(NIGHTMARE_MODE)
+end
+
+local function findNightmarePortalPart()
+    local bestPart = nil
+    local bestScore = -math.huge
+    for _, descendant in ipairs(workspace:GetDescendants()) do
+        if descendant:IsA("BasePart") and descendant.Transparency < 1 then
+            local parentName = descendant.Parent and descendant.Parent.Name or ""
+            local identity = string.lower(descendant.Name .. " " .. parentName)
+            local hue, saturation = Color3.toHSV(descendant.Color)
+            local isPurple = hue >= 0.68 and hue <= 0.90 and saturation >= 0.22
+            local score = 0
+            if string.find(identity, "portal", 1, true) then score += 7 end
+            if string.find(identity, "nightmare", 1, true) then score += 5 end
+            if string.find(identity, "death", 1, true) then score += 3 end
+            if string.find(identity, "tower", 1, true) then score += 3 end
+            if isPurple then score += 4 end
+            if descendant.CanTouch then score += 1 end
+            if score > bestScore and score >= 8 then
+                bestPart = descendant
+                bestScore = score
+            end
+        end
+    end
+    return bestPart
+end
+
+local function prepareNightmareChallengeScene()
+    local character = LocalPlayer.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not root then
+        return false
+    end
+    local scene = workspace:FindFirstChild("TowerBattle")
+    if not scene then
+        local assets = ReplicatedStorage:FindFirstChild("Assets")
+        local model = assets and assets:FindFirstChild("Model")
+        local sceneFolder = model and model:FindFirstChild("Scene")
+        scene = sceneFolder and sceneFolder:FindFirstChild("TowerBattle")
+    end
+    if not scene or not scene:IsA("Model") then
+        return false
+    end
+    local ok = pcall(function()
+        if scene.Parent ~= workspace then
+            scene.Parent = workspace
+        end
+        scene:PivotTo(CFrame.new(0, 300, 0))
+        local posFolder = scene:FindFirstChild("Pos", true)
+        local playerPoint = posFolder and posFolder:FindFirstChild("Player")
+        if not playerPoint or not playerPoint:IsA("BasePart") then
+            error("TowerBattle.Pos.Player was not found")
+        end
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+        root.CFrame = playerPoint.CFrame
+    end)
+    if ok then
+        nightmarePortalPrimedCharacter = character
+        setReviveStatus("Death Tower arena prepared automatically", true)
+    end
+    return ok
+end
+
+local function primeNightmarePortal()
+    local character = LocalPlayer.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not character or not root then
+        return false
+    end
+    if nightmarePortalPrimedCharacter == character then
+        return true
+    end
+    if nightmarePortalPrimeRunning then
+        return false
+    end
+
+    if prepareNightmareChallengeScene() then
+        return true
+    end
+
+    local portalPart = findNightmarePortalPart()
+    if not portalPart then
+        setReviveStatus("Nightmare is waiting for the purple Death Tower portal", nil)
+        return false
+    end
+
+    nightmarePortalPrimeRunning = true
+    local originalCFrame = root.CFrame
+    local ok = pcall(function()
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+        root.CFrame = portalPart.CFrame * CFrame.new(0, 0, -2.2)
+        if type(firetouchinterest) == "function" then
+            firetouchinterest(root, portalPart, 0)
+            firetouchinterest(root, portalPart, 1)
+        end
+        task.wait(0.18)
+        root.CFrame = portalPart.CFrame * CFrame.new(0, 0, 2.2)
+        task.wait(0.18)
+        root.CFrame = originalCFrame
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+    nightmarePortalPrimeRunning = false
+    if ok then
+        nightmarePortalPrimedCharacter = character
+        setReviveStatus("Purple Death Tower portal primed automatically", true)
+    end
+    return ok
 end
 
 local function refreshCursedKingStatus()
@@ -3210,8 +3592,18 @@ end
 local function startSpecialBoss(mode, levelAdd, nativeAuto)
     local info = getSpecialBossState(mode)
     if not info.Unlocked then
-        if mode == NIGHTMARE_MODE then refreshNightmareStatus() else refreshCursedKingStatus() end
+        if mode == NIGHTMARE_MODE then
+            refreshNightmareStatus()
+        elseif mode == RED_DRAGON_MODE then
+            refreshDeathKingStatus()
+        else
+            refreshCursedKingStatus()
+        end
         return false
+    end
+    if mode == NIGHTMARE_MODE and info.BattleState == 0 and nightmarePortalPrimedCharacter ~= LocalPlayer.Character then
+        primeNightmarePortal()
+        task.wait(0.12)
     end
     local autoMode = nativeAuto and mode or 0
     writeDirectAtom(reaperBattleStore, "AtomAutoChallengeMode", autoMode)
@@ -3220,9 +3612,32 @@ local function startSpecialBoss(mode, levelAdd, nativeAuto)
     local startOk = fireRemote("startTimeLimitChallengeReq", mode, levelAdd)
     if resumeOk and startOk then
         specialLastStart[mode] = workspace:GetServerTimeNow()
+        if mode == NIGHTMARE_MODE and info.BattleState == 0 and nightmarePortalPrimedCharacter ~= LocalPlayer.Character then
+            task.delay(0.9, function()
+                if not gui.Parent or getNightmareState().BattleState ~= 0 then
+                    return
+                end
+                if primeNightmarePortal() then
+                    task.wait(0.15)
+                    fireRemote("setAfkResumeReq", autoMode, levelAdd)
+                    fireRemote("startTimeLimitChallengeReq", mode, levelAdd)
+                    specialLastStart[mode] = workspace:GetServerTimeNow()
+                end
+            end)
+        end
         return true
     end
     return false
+end
+
+local function armDeathKingAuto()
+    local info = getDeathKingState()
+    local ok = startSpecialBoss(RED_DRAGON_MODE, deathKingLevelAdd, info.NativeAutoAvailable and not state.specialPriority)
+    if ok then
+        setReviveStatus("Death King auto " .. levelAddText(deathKingLevelAdd) .. " armed", true)
+    end
+    refreshDeathKingStatus()
+    return ok
 end
 
 local function armCursedKingAuto()
@@ -3252,15 +3667,18 @@ local function disarmSpecialAuto()
 end
 
 priority.modeName = function(mode)
-    return mode == NIGHTMARE_MODE and "Nightmare" or "Cursed King"
+    return mode == NIGHTMARE_MODE and "Nightmare"
+        or (mode == RED_DRAGON_MODE and "Death King" or "Cursed King")
 end
 
 priority.reset = function()
     priority.phase = "special"
     priority.wins = 0
-    priority.nextMode = priority.target == "Cursed King" and GREEN_DRAGON_MODE or NIGHTMARE_MODE
+    priority.nextMode = priority.target == "Cursed King" and GREEN_DRAGON_MODE
+        or (priority.target == "Death King" and RED_DRAGON_MODE or NIGHTMARE_MODE)
     priority.activeMode = nil
     priority.activeLevelBefore = 0
+    priority.lastLevels[RED_DRAGON_MODE] = getDeathKingState().Level
     priority.lastLevels[GREEN_DRAGON_MODE] = getCursedKingState().Level
     priority.lastLevels[NIGHTMARE_MODE] = getNightmareState().Level
     priority.seenResultSerial = specialResultSerial
@@ -3271,6 +3689,7 @@ priority.reset = function()
 end
 
 priority.chooseMode = function()
+    local deathInfo = getDeathKingState()
     local cursedInfo = getCursedKingState()
     local nightmareInfo = getNightmareState()
     if priority.target == "Nightmare" then
@@ -3279,8 +3698,19 @@ priority.chooseMode = function()
     if priority.target == "Cursed King" then
         return cursedInfo.Unlocked and GREEN_DRAGON_MODE or nil
     end
-    if cursedInfo.Unlocked and nightmareInfo.Unlocked then
-        return priority.nextMode
+    if priority.target == "Death King" then
+        return deathInfo.Unlocked and RED_DRAGON_MODE or nil
+    end
+    if priority.target == "Cycle All" then
+        local order = {RED_DRAGON_MODE, GREEN_DRAGON_MODE, NIGHTMARE_MODE}
+        local startIndex = table.find(order, priority.nextMode) or 1
+        for offset = 0, #order - 1 do
+            local candidate = order[((startIndex + offset - 1) % #order) + 1]
+            if getSpecialBossState(candidate).Unlocked then
+                return candidate
+            end
+        end
+        return nil
     end
     if nightmareInfo.Unlocked then
         return NIGHTMARE_MODE
@@ -3325,16 +3755,25 @@ priority.complete = function(success)
     end
 
     priority.wins += 1
-    if priority.target == "Alternate Both" then
-        priority.nextMode = completedMode == NIGHTMARE_MODE and GREEN_DRAGON_MODE or NIGHTMARE_MODE
+    if priority.target == "Cycle All" then
+        priority.nextMode = completedMode == RED_DRAGON_MODE and GREEN_DRAGON_MODE
+            or (completedMode == GREEN_DRAGON_MODE and NIGHTMARE_MODE or RED_DRAGON_MODE)
     end
     if priority.wins >= priority.winsPerCycle then
         priority.phase = "quit"
         priority.wins = 0
-        priority.quitDeadline = os.clock() + 4
+        priority.quitDeadline = os.clock() + 3.5
         state.priorityMulti = false
-        fireRemote("levelTimeLimitBossReq")
-        priorityStatusLabel.Text = "Special Priority: Nightmare defeated | Quitting Tower"
+        multiHitNeedsBootstrap = true
+        disarmSpecialAuto()
+        for attempt = 0, 2 do
+            task.delay(attempt * 0.16, function()
+                if gui.Parent and state.specialPriority and priority.phase == "quit" then
+                    fireRemote("levelTimeLimitBossReq")
+                end
+            end)
+        end
+        priorityStatusLabel.Text = "Special Priority: " .. priority.modeName(completedMode) .. " defeated | Exiting"
         priorityStatusLabel.TextColor3 = COLORS.success
     else
         priorityStatusLabel.Text = "Special Priority: " .. priority.wins .. " / " .. priority.winsPerCycle .. " special wins"
@@ -3343,16 +3782,17 @@ priority.complete = function(success)
 end
 
 priority.observeProgress = function()
-    for _, mode in ipairs({GREEN_DRAGON_MODE, NIGHTMARE_MODE}) do
+    for _, mode in ipairs({RED_DRAGON_MODE, GREEN_DRAGON_MODE, NIGHTMARE_MODE}) do
         local currentLevel = getSpecialBossState(mode).Level
         local previousLevel = priority.lastLevels[mode] or currentLevel
         priority.lastLevels[mode] = currentLevel
         if currentLevel < previousLevel then
             previousLevel = currentLevel
         end
-        local matchesTarget = priority.target == "Alternate Both"
+        local matchesTarget = priority.target == "Cycle All"
             or (priority.target == "Nightmare" and mode == NIGHTMARE_MODE)
             or (priority.target == "Cursed King" and mode == GREEN_DRAGON_MODE)
+            or (priority.target == "Death King" and mode == RED_DRAGON_MODE)
         if priority.phase == "special" and matchesTarget and currentLevel > previousLevel then
             if not priority.activeMode then
                 priority.activeMode = mode
@@ -3372,6 +3812,7 @@ priority.isMultiHitActive = function()
 end
 
 task.defer(refreshCursedKingStatus)
+task.defer(refreshDeathKingStatus)
 task.defer(refreshNightmareStatus)
 
 local attackControl
@@ -3382,7 +3823,7 @@ local multiHitDelay = 0.06
 local multiHitTargetMode = "Unlocked Bosses Only"
 
 attackControl = CombatSection:AddToggle({
-    Name = "Auto Attack",
+    Name = "Auto Attack Latest Boss",
     Description = "Attacks your latest unlocked boss from anywhere",
     Flag = "revive_auto_attack",
     Callback = function(enabled)
@@ -3391,7 +3832,7 @@ attackControl = CombatSection:AddToggle({
             state.multiHit = false
             multiHitControl:Set(false, true)
         end
-        setReviveStatus(enabled and "Auto Attack enabled" or "Auto Attack disabled", enabled and true or nil)
+        setReviveStatus(enabled and "Auto Attack Latest Boss enabled" or "Auto Attack Latest Boss disabled", enabled and true or nil)
     end,
 })
 
@@ -3401,6 +3842,9 @@ multiHitControl = CombatSection:AddToggle({
     Flag = "revive_multi_hit_all_bosses",
     Callback = function(enabled)
         state.multiHit = enabled
+        if enabled then
+            multiHitNeedsBootstrap = true
+        end
         if overnightMultiHitControl and overnightMultiHitControl:Get() ~= enabled then
             overnightMultiHitControl:Set(enabled, true)
         end
@@ -3468,6 +3912,7 @@ CombatSection:AddToggle({
 
 local challengeOneControl
 local challengeFiveControl
+local deathKingControl
 local cursedKingControl
 local nightmareControl
 challengeOneControl = ChallengeSection:AddToggle({
@@ -3485,6 +3930,9 @@ challengeOneControl = ChallengeSection:AddToggle({
         end
         if enabled and nightmareControl then
             nightmareControl:Set(false)
+        end
+        if enabled and deathKingControl then
+            deathKingControl:Set(false)
         end
     end,
 })
@@ -3504,6 +3952,67 @@ challengeFiveControl = ChallengeSection:AddToggle({
         end
         if enabled and nightmareControl then
             nightmareControl:Set(false)
+        end
+        if enabled and deathKingControl then
+            deathKingControl:Set(false)
+        end
+    end,
+})
+
+CursedKingSection:AddDropdown({
+    Name = "Death King Level Gain",
+    Options = {"+1 Level", "+5 Levels", "+10 Levels"},
+    Default = "+1 Level",
+    Flag = "revive_death_king_level_gain",
+    Callback = function(value)
+        deathKingLevelAdd = value == "+10 Levels" and 2 or (value == "+5 Levels" and 1 or 0)
+        if state.deathKing and getDeathKingState().Unlocked then
+            armDeathKingAuto()
+        else
+            refreshDeathKingStatus()
+        end
+    end,
+})
+
+deathKingControl = CursedKingSection:AddToggle({
+    Name = "Auto Death King",
+    Description = "Farms the RedDragon special boss continuously",
+    Flag = "revive_auto_death_king",
+    Callback = function(enabled)
+        state.deathKing = enabled
+        if overnightDeathKingControl and overnightDeathKingControl:Get() ~= enabled then
+            overnightDeathKingControl:Set(enabled, true)
+        end
+        if enabled then
+            if cursedKingControl then cursedKingControl:Set(false) end
+            if nightmareControl then nightmareControl:Set(false) end
+            if challengeOneControl then challengeOneControl:Set(false) end
+            if challengeFiveControl then challengeFiveControl:Set(false) end
+            local info = refreshDeathKingStatus()
+            if info.Unlocked then
+                armDeathKingAuto()
+            else
+                setReviveStatus("Death King armed; waiting for Main Level " .. info.RequiredMainLevel, nil)
+            end
+        else
+            if not state.cursedKing and not state.nightmare and not state.specialPriority then
+                disarmSpecialAuto()
+            end
+            refreshDeathKingStatus()
+        end
+    end,
+})
+
+CursedKingSection:AddButton({
+    Name = "Start Death King Once",
+    Description = "Starts one Death King run with the selected level gain",
+    Persist = false,
+    Callback = function()
+        local info = refreshDeathKingStatus()
+        if info.Unlocked then
+            startSpecialBoss(RED_DRAGON_MODE, deathKingLevelAdd, false)
+        else
+            Window:Notify("Death King", "Requires Main Level " .. info.RequiredMainLevel .. ".", 4)
         end
     end,
 })
@@ -3533,6 +4042,7 @@ cursedKingControl = CursedKingSection:AddToggle({
             overnightCursedKingControl:Set(enabled, true)
         end
         if enabled then
+            if deathKingControl then deathKingControl:Set(false) end
             if nightmareControl then nightmareControl:Set(false) end
             if challengeOneControl then challengeOneControl:Set(false) end
             if challengeFiveControl then challengeFiveControl:Set(false) end
@@ -3543,7 +4053,7 @@ cursedKingControl = CursedKingSection:AddToggle({
                 setReviveStatus("Cursed King armed; waiting for Main Level " .. info.RequiredMainLevel, nil)
             end
         else
-            if not state.nightmare and not state.specialPriority then
+            if not state.deathKing and not state.nightmare and not state.specialPriority then
                 disarmSpecialAuto()
             end
             refreshCursedKingStatus()
@@ -3591,6 +4101,7 @@ nightmareControl = CursedKingSection:AddToggle({
             overnightNightmareControl:Set(enabled, true)
         end
         if enabled then
+            if deathKingControl then deathKingControl:Set(false) end
             if cursedKingControl then cursedKingControl:Set(false) end
             if challengeOneControl then challengeOneControl:Set(false) end
             if challengeFiveControl then challengeFiveControl:Set(false) end
@@ -3601,7 +4112,7 @@ nightmareControl = CursedKingSection:AddToggle({
                 setReviveStatus("Nightmare armed; waiting for Main Level " .. info.RequiredMainLevel, nil)
             end
         else
-            if not state.cursedKing and not state.specialPriority then
+            if not state.deathKing and not state.cursedKing and not state.specialPriority then
                 disarmSpecialAuto()
             end
             refreshNightmareStatus()
@@ -3628,11 +4139,11 @@ CursedKingSection:AddLabel("Cursed King = GreenDragon mode 2 | Nightmare = Death
 
 SpecialPrioritySection:AddDropdown({
     Name = "Priority Special Boss",
-    Options = {"Nightmare", "Cursed King", "Alternate Both"},
+    Options = {"Nightmare", "Cursed King", "Death King", "Cycle All"},
     Default = "Nightmare",
     Flag = "revive_priority_special_target_v2",
     Callback = function(value)
-        priority.target = value == "Cursed King" and value or (value == "Alternate Both" and value or "Nightmare")
+        priority.target = (value == "Cursed King" or value == "Death King" or value == "Cycle All") and value or "Nightmare"
         if state.specialPriority then
             priority.reset()
             priorityStatusLabel.Text = "Special Priority: Target changed to " .. priority.target
@@ -3690,21 +4201,22 @@ specialPriorityControl = SpecialPrioritySection:AddToggle({
             overnightSpecialPriorityControl:Set(enabled, true)
         end
         if enabled then
+            if deathKingControl then deathKingControl:Set(false) end
             if cursedKingControl then cursedKingControl:Set(false) end
             if nightmareControl then nightmareControl:Set(false) end
             if attackControl then attackControl:Set(false) end
-            if multiHitControl then multiHitControl:Set(false) end
             if bossFarmControl then bossFarmControl:Set(false) end
             if challengeOneControl then challengeOneControl:Set(false) end
             if challengeFiveControl then challengeFiveControl:Set(false) end
             disarmSpecialAuto()
             priority.reset()
+            multiHitNeedsBootstrap = true
             priorityStatusLabel.Text = "Special Priority: AFK climb armed for " .. priority.target
             priorityStatusLabel.TextColor3 = COLORS.success
             setReviveStatus("Special boss priority enabled: " .. priority.target, true)
         else
             priority.reset()
-            if not state.cursedKing and not state.nightmare then
+            if not state.deathKing and not state.cursedKing and not state.nightmare then
                 disarmSpecialAuto()
             end
             priorityStatusLabel.Text = "Special Priority: Disabled"
@@ -3996,6 +4508,7 @@ task.defer(refreshWeaponStatus)
 
 local autoRebirthFloor = 1
 local autoRebirthControl
+local rebirthStatusLabel = RebirthSection:AddLabel("Auto Rebirth: Waiting for live Death Tower requirement")
 RebirthSection:AddSlider({
     Name = "Rebirth Floor",
     Min = 1,
@@ -4012,29 +4525,156 @@ RebirthSection:AddSlider({
 })
 
 autoRebirthControl = RebirthSection:AddToggle({
-    Name = "Native Auto Rebirth",
-    Description = "Uses the game's verified boolean + floor setting; requires its gamepass",
+    Name = "Auto Rebirth",
+    Description = "Directly uses the game's rebirth request when your live Death Tower requirement is met",
     Flag = "revive_auto_rebirth",
     Callback = function(enabled)
-        if not fireRemote("SetAutoRebirth", enabled, autoRebirthFloor) then
-            state.autoRebirth = false
-            if overnightAutoRebirthControl then
-                overnightAutoRebirthControl:Set(false, true)
-            end
-            task.defer(function()
-                autoRebirthControl:Set(false, true)
-            end)
-            return
-        end
         state.autoRebirth = enabled
+        -- Also mirror the game's optional native setting when its gamepass exists,
+        -- but the hub's direct requirement-aware loop does not depend on it.
+        if remotes.SetAutoRebirth then
+            fireRemote("SetAutoRebirth", enabled, autoRebirthFloor)
+        end
         if overnightAutoRebirthControl and overnightAutoRebirthControl:Get() ~= enabled then
             overnightAutoRebirthControl:Set(enabled, true)
         end
-        setReviveStatus(enabled and ("Auto Rebirth enabled at floor " .. autoRebirthFloor) or "Auto Rebirth disabled", enabled and true or nil)
+        rebirthStatusLabel.Text = enabled and "Auto Rebirth: Armed" or "Auto Rebirth: Disabled"
+        rebirthStatusLabel.TextColor3 = enabled and COLORS.success or COLORS.muted
+        setReviveStatus(enabled and "Auto Rebirth armed from live tower progress" or "Auto Rebirth disabled", enabled and true or nil)
     end,
 })
 
-RebirthSection:AddLabel("The server enforces ownership and valid floor limits.")
+RebirthSection:AddLabel("The server validates Death Tower progress. Native gamepass auto is mirrored when available.")
+
+local soulRingStore = nil
+local soulRingUIStore = nil
+local soulRingConfig = nil
+pcall(function()
+    soulRingStore = require(ReplicatedStorage:WaitForChild("common"):WaitForChild("store"):WaitForChild("soulring"))
+    soulRingUIStore = require(ReplicatedStorage:WaitForChild("common"):WaitForChild("store"):WaitForChild("ui-store")).GetUIStore()
+    soulRingConfig = require(ReplicatedStorage:WaitForChild("gen_config"):WaitForChild("tbsoulring"))
+end)
+
+local function getSoulRingResourceCount(itemId)
+    local playerData = soulRingUIStore and soulRingUIStore.playerData and soulRingUIStore.playerData()
+    for _, item in ipairs(playerData and playerData.Inventory or {}) do
+        if tostring(item.id) == itemId then
+            return tonumber(item.count) or 0
+        end
+    end
+    return 0
+end
+
+local function getSoulRingInfo()
+    local rings = {}
+    pcall(function()
+        local atom = soulRingStore and soulRingStore.AtomSoulRings and soulRingStore.AtomSoulRings(0)
+        rings = type(atom) == "function" and atom() or {}
+    end)
+    local ring = rings[1]
+    local configEntry = nil
+    if ring and soulRingConfig then
+        configEntry = soulRingConfig[ring.Id]
+        if not configEntry and type(soulRingConfig.get) == "function" then
+            pcall(function()
+                configEntry = soulRingConfig:get(ring.Id)
+            end)
+        end
+    end
+    return {
+        Available = ring ~= nil,
+        Id = ring and tostring(ring.Id) or "Locked",
+        Name = configEntry and tostring(configEntry.name) or (ring and tostring(ring.Id) or "Locked"),
+        Description = configEntry and tostring(configEntry.desc) or "Rebirth once to unlock Soul Ring slot 1.",
+        Level = ring and (tonumber(ring.Level) or 0) or 0,
+        Value = ring and (tonumber(ring.Value) or 0) or 0,
+        SoulStones = getSoulRingResourceCount("SkillStone"),
+        Rerolls = getSoulRingResourceCount("SkillRerollStone"),
+    }
+end
+
+local function refreshSoulRingStatus(prefix)
+    local info = getSoulRingInfo()
+    if info.Available then
+        soulRingStatusLabel.Text = string.format(
+            "Soul Ring: %s | Level %d | %.2f%%",
+            info.Name,
+            info.Level,
+            info.Value * 100
+        )
+        soulRingStatusLabel.TextColor3 = COLORS.success
+        soulRingCurrencyLabel.Text = "Soul Stones: " .. info.SoulStones .. " | Rerolls: " .. info.Rerolls
+        soulRingCurrencyLabel.TextColor3 = COLORS.muted
+    else
+        soulRingStatusLabel.Text = "Soul Ring: Slot 1 is locked until Rebirth 1"
+        soulRingStatusLabel.TextColor3 = COLORS.error
+        soulRingCurrencyLabel.Text = "Soul Stones: " .. info.SoulStones .. " | Rerolls: " .. info.Rerolls
+    end
+    if prefix then
+        setReviveStatus(prefix, true)
+    end
+    return info
+end
+
+local soulRingUpgradeBatch = 1
+SoulRingSection:AddDropdown({
+    Name = "Upgrade Levels Per Request",
+    Options = {"1", "10", "50", "100"},
+    Default = "1",
+    Flag = "revive_soul_ring_upgrade_batch",
+    Callback = function(value)
+        soulRingUpgradeBatch = tonumber(value) or 1
+    end,
+})
+
+SoulRingSection:AddButton({
+    Name = "Upgrade Soul Ring Now",
+    Description = "Upgrades page 1, slot 1 with the selected batch size",
+    Persist = false,
+    Callback = function()
+        local info = refreshSoulRingStatus()
+        if not info.Available then
+            Window:Notify("Soul Ring", "Slot 1 unlocks after your first Rebirth.", 4)
+            return
+        end
+        if fireRemote("enhanceSoulRing", 0, 0, soulRingUpgradeBatch) then
+            task.delay(0.4, refreshSoulRingStatus)
+        end
+    end,
+})
+
+local autoSoulRingControl
+autoSoulRingControl = SoulRingSection:AddToggle({
+    Name = "Auto Upgrade Soul Ring",
+    Description = "Continuously upgrades page 1, slot 1 using your selected batch",
+    Flag = "revive_auto_soul_ring",
+    Callback = function(enabled)
+        state.autoSoulRing = enabled
+        if overnightAutoSoulRingControl and overnightAutoSoulRingControl:Get() ~= enabled then
+            overnightAutoSoulRingControl:Set(enabled, true)
+        end
+        setReviveStatus(enabled and "Auto Soul Ring upgrade enabled" or "Auto Soul Ring upgrade disabled", enabled and true or nil)
+    end,
+})
+
+SoulRingSection:AddButton({
+    Name = "Reroll Soul Ring Once",
+    Description = "Spends one reroll stone on page 1, slot 1",
+    Persist = false,
+    Callback = function()
+        local info = refreshSoulRingStatus()
+        if not info.Available or info.Rerolls < 1 then
+            Window:Notify("Soul Ring", "No available Soul Ring reroll.", 4)
+            return
+        end
+        if fireRemote("rerollSoulRing", 0, 0, 1) then
+            task.delay(0.5, refreshSoulRingStatus)
+        end
+    end,
+})
+
+SoulRingSection:AddLabel("Tracks the live Soul Ring name, level, Soul Stones, and reroll stones. Reroll stays manual.")
+task.defer(refreshSoulRingStatus)
 
 local selectedEnemy = 1
 local tweenSpeed = 90
@@ -4222,7 +4862,7 @@ local VISUAL_COLORS = {
     ["Arctic Cyan"] = Color3.fromRGB(96, 255, 245),
 }
 local visualColor = VISUAL_COLORS["Frozen White"]
-local visualState = {outline = false, aura = false, trail = false, glow = false, wings = false, halo = false, nameplate = false}
+local visualState = {outline = false, aura = false, trail = false, glow = false, wings = false, halo = false, nameplate = false, frozenOutfit = false}
 local visualConnections = {}
 
 local function markVisual(object)
@@ -4529,6 +5169,76 @@ local function createFrozenHalo(character, head)
     end))
 end
 
+local function createFrozenExpeditionOutfit(character)
+    local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+    local head = character:FindFirstChild("Head")
+    if not torso or not head then
+        return
+    end
+
+    local model = markVisual(Instance.new("Model"))
+    model.Name = "CodexFrozenExpeditionOutfit"
+    model.Parent = character
+
+    local function armorPart(name, basePart, size, localCFrame, color, transparency, shape)
+        if not basePart then return nil end
+        local part = makeNeonPart(name, size, basePart.CFrame * localCFrame, model, color, transparency, shape)
+        part.Material = Enum.Material.Ice
+        weldVisualPart(part, basePart)
+        return part
+    end
+
+    local deepIce = Color3.fromRGB(57, 128, 179)
+    local glacier = visualColor:Lerp(SNOW_WHITE, 0.28)
+    armorPart("EverestCoat", torso, torso.Size + Vector3.new(0.34, 0.30, 0.24), CFrame.new(0, -0.04, 0.05), deepIce, 0.22)
+    armorPart("IceChestPlate", torso, Vector3.new(math.max(1.25, torso.Size.X * 0.72), math.max(1.35, torso.Size.Y * 0.72), 0.18), CFrame.new(0, 0.02, -(torso.Size.Z * 0.5 + 0.10)), glacier, 0.08)
+    armorPart("ExpeditionPack", torso, Vector3.new(math.max(1.15, torso.Size.X * 0.65), math.max(1.35, torso.Size.Y * 0.70), 0.42), CFrame.new(0, -0.05, torso.Size.Z * 0.5 + 0.20), deepIce, 0.18)
+    armorPart("LeftIceShoulder", torso, Vector3.new(0.62, 0.38, 0.88), CFrame.new(-(torso.Size.X * 0.5 + 0.24), torso.Size.Y * 0.27, 0) * CFrame.Angles(0, 0, math.rad(-18)), glacier, 0.10)
+    armorPart("RightIceShoulder", torso, Vector3.new(0.62, 0.38, 0.88), CFrame.new(torso.Size.X * 0.5 + 0.24, torso.Size.Y * 0.27, 0) * CFrame.Angles(0, 0, math.rad(18)), glacier, 0.10)
+    armorPart("FrozenHood", head, Vector3.new(0.24, math.max(2.1, head.Size.X + 0.38), math.max(2.1, head.Size.Z + 0.38)), CFrame.Angles(0, 0, math.rad(90)), deepIce, 0.18, Enum.PartType.Cylinder)
+
+    for _, side in ipairs({"Left", "Right"}) do
+        local lowerLeg = character:FindFirstChild(side .. "LowerLeg") or character:FindFirstChild(side .. " Leg")
+        if lowerLeg then
+            armorPart(side .. "GlacierBoot", lowerLeg, lowerLeg.Size + Vector3.new(0.22, 0.12, 0.30), CFrame.new(0, -lowerLeg.Size.Y * 0.18, -0.07), deepIce, 0.14)
+        end
+    end
+
+    local highlight = markVisual(Instance.new("Highlight"))
+    highlight.Name = "EverestIceBloom"
+    highlight.Adornee = model
+    highlight.FillColor = visualColor
+    highlight.FillTransparency = 0.72
+    highlight.OutlineColor = SNOW_WHITE
+    highlight.OutlineTransparency = 0.10
+    highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+    highlight.Parent = model
+
+    local attachment = markVisual(Instance.new("Attachment"))
+    attachment.Name = "EverestSnowAttachment"
+    attachment.Position = Vector3.new(0, torso.Size.Y * 0.5, 0)
+    attachment.Parent = torso
+    local snow = markVisual(Instance.new("ParticleEmitter"))
+    snow.Name = "EverestSnow"
+    snow.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    snow.Color = ColorSequence.new(SNOW_WHITE, visualColor)
+    snow.LightEmission = 0.75
+    snow.Rate = 14
+    snow.Lifetime = NumberRange.new(0.8, 1.6)
+    snow.Speed = NumberRange.new(0.8, 2.2)
+    snow.Acceleration = Vector3.new(-1.2, -2.4, 0)
+    snow.SpreadAngle = Vector2.new(160, 160)
+    snow.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.16),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    snow.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.10),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    snow.Parent = attachment
+end
+
 local function clearCharacterVisuals(character)
     character = character or LocalPlayer.Character
     if not character then
@@ -4691,6 +5401,9 @@ local function applyCharacterVisuals()
     if visualState.halo and head then
         createFrozenHalo(character, head)
     end
+    if visualState.frozenOutfit then
+        createFrozenExpeditionOutfit(character)
+    end
 
     local activeVisuals = {}
     for key, enabled in pairs(visualState) do
@@ -4739,6 +5452,132 @@ end
 VisualInfoSection:AddLabel("The wings and halo are asset-free local neon geometry, so they match every frozen color preset.")
 VisualInfoSection:AddLabel("Codex Nameplate is local-only and restores your real display name when disabled.")
 
+local catalogOutfitId = ""
+local originalAvatarDescription = nil
+local activeCatalogDescription = nil
+local frozenOutfitControl
+
+local function getCharacterHumanoid()
+    local character = LocalPlayer.Character
+    return character and character:FindFirstChildWhichIsA("Humanoid") or nil
+end
+
+local function applyLocalDescription(description, statusText)
+    local humanoid = getCharacterHumanoid()
+    if not humanoid or not description then
+        outfitStatusLabel.Text = "Outfit: Waiting for your character"
+        outfitStatusLabel.TextColor3 = COLORS.error
+        return false
+    end
+    if not originalAvatarDescription then
+        local captured, currentDescription = pcall(function()
+            return humanoid:GetAppliedDescription()
+        end)
+        if captured then
+            originalAvatarDescription = currentDescription
+        end
+    end
+    local ok = pcall(function()
+        humanoid:ApplyDescription(description:Clone())
+    end)
+    outfitStatusLabel.Text = ok and ("Outfit: " .. statusText) or "Outfit: Preview was blocked by this game"
+    outfitStatusLabel.TextColor3 = ok and COLORS.success or COLORS.error
+    if ok then
+        task.delay(0.55, function()
+            if gui.Parent then applyCharacterVisuals() end
+        end)
+    end
+    return ok
+end
+
+OutfitSection:AddInput({
+    Name = "Marketplace Outfit ID",
+    Placeholder = "Enter a public Roblox outfit ID...",
+    Default = "",
+    Flag = "codex_tools_marketplace_outfit_id",
+    Callback = function(value)
+        catalogOutfitId = tostring(value or ""):match("%d+") or ""
+    end,
+})
+
+OutfitSection:AddButton({
+    Name = "Preview Outfit Locally",
+    Description = "Loads a public Roblox avatar outfit for your screen only; it does not grant ownership",
+    Persist = false,
+    Callback = function()
+        local outfitId = tonumber(catalogOutfitId)
+        if not outfitId or outfitId <= 0 then
+            Window:Notify("Outfit Tools", "Enter a valid public outfit ID first", 4)
+            return
+        end
+        outfitStatusLabel.Text = "Outfit: Loading marketplace outfit " .. outfitId .. "..."
+        outfitStatusLabel.TextColor3 = COLORS.muted
+        task.spawn(function()
+            local ok, description = pcall(function()
+                return Players:GetHumanoidDescriptionFromOutfitId(outfitId)
+            end)
+            if not ok or not description then
+                outfitStatusLabel.Text = "Outfit: ID could not be loaded"
+                outfitStatusLabel.TextColor3 = COLORS.error
+                return
+            end
+            activeCatalogDescription = description:Clone()
+            if applyLocalDescription(activeCatalogDescription, "Local marketplace preview " .. outfitId) then
+                Window:Notify("Outfit Tools", "Local preview applied; no item was purchased", 4)
+            end
+        end)
+    end,
+})
+
+OutfitSection:AddButton({
+    Name = "Restore My Roblox Avatar",
+    Description = "Removes the local marketplace preview and restores your real avatar appearance",
+    Persist = false,
+    Callback = function()
+        task.spawn(function()
+            activeCatalogDescription = nil
+            local description = originalAvatarDescription
+            if not description then
+                local ok, fetched = pcall(function()
+                    return Players:GetHumanoidDescriptionFromUserId(LocalPlayer.UserId)
+                end)
+                description = ok and fetched or nil
+            end
+            if frozenOutfitControl then frozenOutfitControl:Set(false) end
+            if applyLocalDescription(description, "Your Roblox avatar restored") then
+                originalAvatarDescription = nil
+            end
+        end)
+    end,
+})
+
+frozenOutfitControl = FrozenPresetSection:AddToggle({
+    Name = "Frozen Everest Outfit",
+    Description = "Asset-free icy expedition coat, hood, pack, armor, boots, and snowfall",
+    Flag = "codex_tools_frozen_everest_outfit",
+    Callback = function(enabled)
+        visualState.frozenOutfit = enabled
+        if enabled then
+            visualColor = VISUAL_COLORS["Glacier Blue"]
+        end
+        applyCharacterVisuals()
+        outfitStatusLabel.Text = enabled and "Outfit: Frozen Everest preset equipped" or "Outfit: Frozen preset removed"
+        outfitStatusLabel.TextColor3 = enabled and COLORS.success or COLORS.muted
+    end,
+})
+
+FrozenPresetSection:AddButton({
+    Name = "Equip Full Frozen Preset",
+    Description = "Enables the complete local Mount Everest-themed outfit in one click",
+    Persist = false,
+    Callback = function()
+        frozenOutfitControl:Set(true)
+        Window:Notify("Frozen Preset", "Everest expedition outfit equipped locally", 4)
+    end,
+})
+
+FrozenPresetSection:AddLabel("Marketplace previews and the frozen preset are cosmetic only; they do not add items to your Roblox inventory.")
+
 track(LocalPlayer.PlayerGui.DescendantAdded:Connect(function(descendant)
     if visualState.nameplate and descendant:IsA("TextLabel") then
         task.defer(applyCodexNameplate)
@@ -4776,6 +5615,17 @@ overnightReaperControl = OvernightSection:AddToggle({
     Callback = function(enabled)
         if autoReaperControl and autoReaperControl:Get() ~= enabled then
             autoReaperControl:Set(enabled)
+        end
+    end,
+})
+
+overnightDeathKingControl = OvernightSection:AddToggle({
+    Name = "Auto Death King",
+    Description = "Continuously advances the Death King special boss",
+    Persist = false,
+    Callback = function(enabled)
+        if deathKingControl and deathKingControl:Get() ~= enabled then
+            deathKingControl:Set(enabled)
         end
     end,
 })
@@ -4836,12 +5686,23 @@ overnightAutoUpgradeControl = OvernightUpgradeSection:AddToggle({
 })
 
 overnightAutoRebirthControl = OvernightUpgradeSection:AddToggle({
-    Name = "Native Auto Rebirth",
-    Description = "Uses the floor chosen in Progress; the server checks gamepass ownership",
+    Name = "Auto Rebirth",
+    Description = "Rebirths as soon as the live Death Tower requirement is met",
     Persist = false,
     Callback = function(enabled)
         if autoRebirthControl and autoRebirthControl:Get() ~= enabled then
             autoRebirthControl:Set(enabled)
+        end
+    end,
+})
+
+overnightAutoSoulRingControl = OvernightUpgradeSection:AddToggle({
+    Name = "Auto Upgrade Soul Ring",
+    Description = "Uses the Soul Ring batch selected in Progress",
+    Persist = false,
+    Callback = function(enabled)
+        if autoSoulRingControl and autoSoulRingControl:Get() ~= enabled then
+            autoSoulRingControl:Set(enabled)
         end
     end,
 })
@@ -4851,10 +5712,47 @@ OvernightUpgradeSection:AddButton({
     Description = "Enables only Anti-AFK and Auto Nightmare; every non-tower feature stays optional",
     Persist = false,
     Callback = function()
+        if specialPriorityControl:Get() then
+            specialPriorityControl:Set(false)
+        end
+        if cursedKingControl:Get() then
+            cursedKingControl:Set(false)
+        end
+        if deathKingControl:Get() then
+            deathKingControl:Set(false)
+        end
         antiAfkControl:Set(true)
         nightmareControl:Set(true)
         setReviveStatus("Tower-only AFK enabled", true)
         Window:Notify("Tower AFK", "Anti-AFK and Auto Nightmare are running; other features remain optional", 4)
+    end,
+})
+
+OvernightUpgradeSection:AddButton({
+    Name = "Enable Multi-Hit AFK",
+    Description = "Runs Anti-AFK plus standalone Multi Hit for the ground bosses",
+    Persist = false,
+    Callback = function()
+        specialPriorityControl:Set(false)
+        deathKingControl:Set(false)
+        cursedKingControl:Set(false)
+        nightmareControl:Set(false)
+        antiAfkControl:Set(true)
+        multiHitControl:Set(true)
+        setReviveStatus("Standalone Multi-Hit AFK enabled", true)
+        Window:Notify("Multi-Hit AFK", "Anti-AFK and all-boss Multi Hit are running", 4)
+    end,
+})
+
+OvernightUpgradeSection:AddButton({
+    Name = "Enable Priority AFK",
+    Description = "Runs Anti-AFK plus the selected special boss and its built-in Multi Hit phase",
+    Persist = false,
+    Callback = function()
+        antiAfkControl:Set(true)
+        specialPriorityControl:Set(true)
+        setReviveStatus("Special Priority AFK enabled for " .. priority.target, true)
+        Window:Notify("Priority AFK", priority.target .. " will alternate with timed Multi Hit", 4)
     end,
 })
 
@@ -4868,10 +5766,12 @@ OvernightUpgradeSection:AddButton({
         multiHitControl:Set(false)
         bossFarmControl:Set(false)
         autoReaperControl:Set(false)
+        deathKingControl:Set(false)
         cursedKingControl:Set(false)
         nightmareControl:Set(false)
         autoEquipBestControl:Set(false)
         autoUpgradeControl:Set(false)
+        autoSoulRingControl:Set(false)
         dailyRewardControl:Set(false)
         onlineRewardControl:Set(false)
         soulSpawnerControl:Set(false)
@@ -4881,10 +5781,21 @@ OvernightUpgradeSection:AddButton({
     end,
 })
 
-OvernightUpgradeSection:AddLabel("Tower AFK only enables Anti-AFK + Nightmare. Auto Rebirth and every other feature remain separate choices.")
+OvernightUpgradeSection:AddLabel("Choose Tower AFK, standalone Multi-Hit AFK, or Priority AFK. Auto Rebirth remains optional.")
 
 track(LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.8)
+    multiHitNeedsBootstrap = true
+    nightmarePortalPrimedCharacter = nil
+    task.wait(0.55)
+    if activeCatalogDescription then
+        local humanoid = getCharacterHumanoid()
+        if humanoid then
+            pcall(function()
+                humanoid:ApplyDescription(activeCatalogDescription:Clone())
+            end)
+            task.wait(0.35)
+        end
+    end
     applyCharacterVisuals()
 end))
 
@@ -4930,7 +5841,7 @@ task.spawn(function()
             -- conflicting controls are silently returned to off instead of
             -- being allowed to cancel the requested priority loop.
             if state.autoAttack then state.autoAttack = false; attackControl:Set(false, true) end
-            if state.multiHit then state.multiHit = false; multiHitControl:Set(false, true) end
+            if state.deathKing then state.deathKing = false; deathKingControl:Set(false, true) end
             if state.cursedKing then state.cursedKing = false; cursedKingControl:Set(false, true) end
             if state.nightmare then state.nightmare = false; nightmareControl:Set(false, true) end
             if state.challengeOne then state.challengeOne = false; challengeOneControl:Set(false, true) end
@@ -4946,13 +5857,16 @@ task.spawn(function()
             if progressChanged then
                 -- Let the multi-hit worker observe the new phase before doing more special work.
             elseif priority.phase == "quit" then
-                if battleState == 0 then
+                local exitTimedOut = os.clock() >= priority.quitDeadline
+                if battleState == 0 or exitTimedOut then
                     priority.phase = "multi"
                     priority.multiEndAt = os.clock() + priority.multiSeconds
                     state.priorityMulti = true
-                    priorityStatusLabel.Text = "Special Priority: Tower exited | Multi Hit for " .. priority.multiSeconds .. "s"
+                    multiHitNeedsBootstrap = true
+                    priorityStatusLabel.Text = (exitTimedOut and "Special Priority: Exit timeout | " or "Special Priority: Arena exited | ")
+                        .. "Multi Hit for " .. priority.multiSeconds .. "s"
                     priorityStatusLabel.TextColor3 = COLORS.success
-                elseif isDue("priorityQuitRetry", 1) then
+                elseif isDue("priorityQuitRetry", 0.35) then
                     fireRemote("levelTimeLimitBossReq")
                     priorityStatusLabel.Text = "Special Priority: Quitting Tower before bridge Multi Hit"
                     priorityStatusLabel.TextColor3 = COLORS.muted
@@ -4984,10 +5898,11 @@ task.spawn(function()
                 elseif battleState == 0 and os.clock() >= priority.nextStartAt then
                     priority.complete(false)
                 end
-            elseif battleState == GREEN_DRAGON_MODE or battleState == NIGHTMARE_MODE then
-                local matchesTarget = priority.target == "Alternate Both"
+            elseif battleState == RED_DRAGON_MODE or battleState == GREEN_DRAGON_MODE or battleState == NIGHTMARE_MODE then
+                local matchesTarget = priority.target == "Cycle All"
                     or (priority.target == "Nightmare" and battleState == NIGHTMARE_MODE)
                     or (priority.target == "Cursed King" and battleState == GREEN_DRAGON_MODE)
+                    or (priority.target == "Death King" and battleState == RED_DRAGON_MODE)
                 if matchesTarget then
                     local activeInfo = getSpecialBossState(battleState)
                     priority.activeMode = battleState
@@ -5002,13 +5917,25 @@ task.spawn(function()
                 end
             elseif battleState == 0 and os.clock() >= priority.nextStartAt then
                 if not priority.start() and isDue("priorityWaiting", 2) then
-                    local required = priority.target == "Cursed King" and greenDragonUnlockLevel or nightmareUnlockLevel
+                    local required = priority.target == "Cursed King" and greenDragonUnlockLevel
+                        or (priority.target == "Death King" and redDragonUnlockLevel or nightmareUnlockLevel)
                     priorityStatusLabel.Text = "Special Priority: Waiting for Main Level " .. required
                     priorityStatusLabel.TextColor3 = COLORS.muted
                 end
             elseif isDue("priorityBattleWait", 1) then
                 priorityStatusLabel.Text = "Special Priority: Waiting for current battle to finish"
                 priorityStatusLabel.TextColor3 = COLORS.muted
+            end
+        elseif state.deathKing and isDue("deathKingPoll", 0.25) then
+            local deathInfo = refreshDeathKingStatus()
+            local serverNow = workspace:GetServerTimeNow()
+            if deathInfo.BattleState == RED_DRAGON_MODE and isDue("deathKingAttack", 0.10) then
+                fireRemote("attack", nil)
+            elseif deathInfo.Unlocked
+                and deathInfo.BattleState == 0
+                and serverNow - specialLastStart[RED_DRAGON_MODE] >= (deathInfo.NativeAutoAvailable and 5 or 2)
+            then
+                armDeathKingAuto()
             end
         elseif state.cursedKing and isDue("cursedKingPoll", 0.25) then
             local cursedInfo = refreshCursedKingStatus()
@@ -5032,6 +5959,33 @@ task.spawn(function()
             then
                 armNightmareAuto()
             end
+        end
+        if state.autoRebirth and isDue("hubAutoRebirth", 0.75) then
+            local currentRebirth = tonumber(readAtomValue(rebirthStore, "AtomRebirth")) or 0
+            local towerLevel = tonumber(readAtomValue(reaperBattleStore, "AtomTowerLevel")) or 0
+            local battleState = tonumber(readAtomValue(reaperBattleStore, "AtomBattleState")) or 0
+            local requiredTower = rebirthTowerLevelRatio * (currentRebirth + 1)
+            rebirthStatusLabel.Text = string.format(
+                "Auto Rebirth: Rebirth %d | Tower %d / %d",
+                currentRebirth,
+                towerLevel,
+                requiredTower
+            )
+            rebirthStatusLabel.TextColor3 = towerLevel >= requiredTower and COLORS.success or COLORS.muted
+            if towerLevel >= requiredTower and battleState == 0 and isDue("hubAutoRebirthSend", 2) then
+                if fireRemote("rebirth") then
+                    rebirthStatusLabel.Text = "Auto Rebirth: Requirement met | Request sent"
+                    setReviveStatus("Rebirth request sent at Death Tower " .. towerLevel, true)
+                end
+            end
+        end
+        if state.autoSoulRing and isDue("autoSoulRingUpgrade", 0.75) then
+            local ringInfo = refreshSoulRingStatus()
+            if ringInfo.Available and ringInfo.SoulStones > 0 then
+                fireRemote("enhanceSoulRing", 0, 0, soulRingUpgradeBatch)
+            end
+        elseif isDue("soulRingStatusRefresh", 2) then
+            refreshSoulRingStatus()
         end
         if visualState.nameplate and isDue("codexNameplate", 0.25) then
             applyCodexNameplate()
@@ -5092,10 +6046,93 @@ task.spawn(function()
     end
 end)
 
+local function waitForBossConfirmation(level, startingSerial, duration)
+    local deadline = os.clock() + duration
+    repeat
+        if (confirmedAttackSerial[level] or 0) > startingSerial then
+            return true
+        end
+        task.wait(0.01)
+    until not priority.isMultiHitActive() or not gui.Parent or os.clock() >= deadline
+    return (confirmedAttackSerial[level] or 0) > startingSerial
+end
+
+local function bootstrapMultiHitSession()
+    if not multiHitNeedsBootstrap then
+        return true
+    end
+
+    local bootstrapLevel = 1
+    local startingSerial = confirmedAttackSerial[bootstrapLevel] or 0
+    multiHitStatusLabel.Text = "Multi Hit: Priming the bridge session automatically..."
+    multiHitStatusLabel.TextColor3 = COLORS.muted
+
+    for _ = 1, 3 do
+        fireRemote("attack", bootstrapLevel)
+        if waitForBossConfirmation(bootstrapLevel, startingSerial, 0.12) then
+            multiHitNeedsBootstrap = false
+            multiHitStatusLabel.Text = "Multi Hit: Remote session primed"
+            multiHitStatusLabel.TextColor3 = COLORS.success
+            return true
+        end
+    end
+
+    local enemyPart = findEnemyPart(bootstrapLevel)
+    local character = LocalPlayer.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not enemyPart or not root then
+        multiHitStatusLabel.Text = "Multi Hit: Waiting for Enemy 1 to load"
+        multiHitStatusLabel.TextColor3 = COLORS.muted
+        return false
+    end
+
+    local originalCFrame = root.CFrame
+    local moved = pcall(function()
+        local flatForward = Vector3.new(enemyPart.CFrame.LookVector.X, 0, enemyPart.CFrame.LookVector.Z)
+        if flatForward.Magnitude < 0.05 then
+            flatForward = Vector3.new(0, 0, -1)
+        else
+            flatForward = flatForward.Unit
+        end
+        local targetPosition = enemyPart.Position + flatForward * 5 + Vector3.new(0, 0.5, 0)
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+        root.CFrame = CFrame.lookAt(targetPosition, enemyPart.Position)
+    end)
+
+    local confirmed = false
+    if moved then
+        task.wait(0.10)
+        for _ = 1, 5 do
+            fireRemote("attack", bootstrapLevel)
+            if waitForBossConfirmation(bootstrapLevel, startingSerial, 0.12) then
+                confirmed = true
+                break
+            end
+        end
+        pcall(function()
+            root.CFrame = originalCFrame
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end)
+    end
+
+    multiHitNeedsBootstrap = not confirmed
+    multiHitStatusLabel.Text = confirmed
+        and "Multi Hit: Bridge session primed; attacking from anywhere"
+        or "Multi Hit: Bridge activation retry queued"
+    multiHitStatusLabel.TextColor3 = confirmed and COLORS.success or COLORS.error
+    return confirmed
+end
+
 task.spawn(function()
     local currentBoss = 1
     while gui.Parent do
         if priority.isMultiHitActive() then
+            if multiHitNeedsBootstrap and not bootstrapMultiHitSession() then
+                task.wait(0.25)
+                continue
+            end
             local maxBoss = multiHitTargetMode == "Unlocked Bosses Only"
                 and getLatestUnlockedBossLevel()
                 or 15
@@ -5104,7 +6141,7 @@ task.spawn(function()
             end
 
             local startingSerial = confirmedAttackSerial[currentBoss] or 0
-            local confirmationDeadline = os.clock() + 0.85
+            local confirmationDeadline = os.clock() + 0.45
             local confirmed = false
             local multiPrefix = state.priorityMulti and "Priority Multi" or "Multi Hit"
             multiHitStatusLabel.Text = multiPrefix .. ": Boss " .. currentBoss .. " / " .. maxBoss .. " - waiting for server"
