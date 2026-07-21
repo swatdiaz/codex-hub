@@ -349,7 +349,26 @@ local main = create("Frame", {
     ClipsDescendants = false,
 }, gui)
 addCorner(main, 12)
-addStroke(main, COLORS.accentDark, 2, 0.05)
+do
+    local outerStroke = addStroke(main, COLORS.accentDark, 2, 0.04)
+    outerStroke.LineJoinMode = Enum.LineJoinMode.Round
+    create("UIGradient", {
+        Name = "ContinuousIceBorder",
+        Rotation = 22,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0.00, COLORS.accentDark),
+            ColorSequenceKeypoint.new(0.24, SNOW_WHITE),
+            ColorSequenceKeypoint.new(0.52, COLORS.accent),
+            ColorSequenceKeypoint.new(0.78, SNOW_WHITE),
+            ColorSequenceKeypoint.new(1.00, COLORS.accentDark),
+        }),
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0.00, 0.08),
+            NumberSequenceKeypoint.new(0.50, 0.28),
+            NumberSequenceKeypoint.new(1.00, 0.08),
+        }),
+    }, outerStroke)
+end
 create("UIGradient", {
     Rotation = 28,
     Color = ColorSequence.new({
@@ -359,6 +378,36 @@ create("UIGradient", {
         ColorSequenceKeypoint.new(1.00, Color3.fromRGB(190, 217, 231)),
     }),
 }, main)
+
+do
+    local panelBackground = create("ImageLabel", {
+        Name = "PanelBackground",
+        Position = UDim2.fromOffset(1, 1),
+        Size = UDim2.new(1, -2, 1, -2),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Image = "rbxthumb://type=Asset&id=12862074936&w=768&h=432",
+        ImageColor3 = Color3.fromRGB(225, 244, 253),
+        ImageTransparency = 0.18,
+        ScaleType = Enum.ScaleType.Crop,
+        ZIndex = 1,
+    }, main)
+    addCorner(panelBackground, 11)
+    create("UIGradient", {
+        Name = "PanelImageIceFade",
+        Rotation = 90,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(248, 253, 255)),
+            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(214, 238, 249)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(177, 220, 240)),
+        }),
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0.00, 0.12),
+            NumberSequenceKeypoint.new(0.46, 0.30),
+            NumberSequenceKeypoint.new(1.00, 0.18),
+        }),
+    }, panelBackground)
+end
 
 local uiScale = create("UIScale", {Scale = 1}, main)
 
@@ -373,49 +422,6 @@ local icicleLayer = create("Frame", {
 }, main)
 
 do
-    local function makeIceEdge(position, size)
-        local glow = create("Frame", {
-            Position = position,
-            Size = size,
-            BackgroundColor3 = COLORS.accent,
-            BackgroundTransparency = 0.76,
-            BorderSizePixel = 0,
-            ZIndex = 80,
-        }, icicleLayer)
-        addCorner(glow, 4)
-
-        local edge = create("Frame", {
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.fromScale(0.5, 0.5),
-            Size = UDim2.new(1, -2, 1, -2),
-            BackgroundColor3 = COLORS.accent,
-            BackgroundTransparency = 0.20,
-            BorderSizePixel = 0,
-            ZIndex = 81,
-        }, glow)
-        addCorner(edge, 4)
-        create("UIGradient", {
-            Name = "FrozenAccentGradient",
-            Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0.00, COLORS.accentDark),
-                ColorSequenceKeypoint.new(0.22, SNOW_WHITE),
-                ColorSequenceKeypoint.new(0.52, COLORS.accent),
-                ColorSequenceKeypoint.new(0.78, SNOW_WHITE),
-                ColorSequenceKeypoint.new(1.00, COLORS.accentDark),
-            }),
-            Transparency = NumberSequence.new({
-                NumberSequenceKeypoint.new(0.00, 0.18),
-                NumberSequenceKeypoint.new(0.50, 0.46),
-                NumberSequenceKeypoint.new(1.00, 0.18),
-            }),
-        }, edge)
-    end
-
-    makeIceEdge(UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 5))
-    makeIceEdge(UDim2.new(0, 0, 1, -5), UDim2.new(1, 0, 0, 5))
-    makeIceEdge(UDim2.fromOffset(0, 0), UDim2.new(0, 5, 1, 0))
-    makeIceEdge(UDim2.new(1, -5, 0, 0), UDim2.new(0, 5, 1, 0))
-
     local function makeIcicle(index, xScale, yScale, width, height)
         local icicle = create("Frame", {
             Name = "Icicle" .. tostring(index),
@@ -505,15 +511,15 @@ do
     end
 
     local iceRandom = Random.new(20260721)
-    for index = 1, 18 do
-        local evenPosition = (index - 0.5) / 18
-        local xScale = math.clamp(evenPosition + iceRandom:NextNumber(-0.018, 0.018), 0.012, 0.988)
-        makeIcicle(index, xScale, 1, iceRandom:NextInteger(6, 11), iceRandom:NextInteger(15, 43))
+    for index = 1, 13 do
+        local evenPosition = (index - 0.5) / 13
+        local xScale = math.clamp(evenPosition + iceRandom:NextNumber(-0.024, 0.024), 0.040, 0.960)
+        makeIcicle(index, xScale, 1, iceRandom:NextInteger(5, 9), iceRandom:NextInteger(13, 36))
     end
 
-    local topPositions = {0.022, 0.050, 0.083, 0.155, 0.824, 0.874, 0.918, 0.952, 0.982}
+    local topPositions = {0.075, 0.115, 0.165, 0.835, 0.885, 0.925}
     for index, xScale in ipairs(topPositions) do
-        makeIcicle(18 + index, xScale, 0, iceRandom:NextInteger(5, 9), iceRandom:NextInteger(10, 25))
+        makeIcicle(13 + index, xScale, 0, iceRandom:NextInteger(5, 8), iceRandom:NextInteger(9, 20))
     end
 end
 
