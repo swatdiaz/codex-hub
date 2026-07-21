@@ -4546,6 +4546,7 @@ autoRebirthControl = RebirthSection:AddToggle({
 
 RebirthSection:AddLabel("The server validates Death Tower progress. Native gamepass auto is mirrored when available.")
 
+do
 local soulRingStore = nil
 local soulRingUIStore = nil
 local soulRingConfig = nil
@@ -4617,6 +4618,7 @@ local function refreshSoulRingStatus(prefix)
 end
 
 local soulRingUpgradeBatch = 1
+state.soulRingUpgradeBatch = soulRingUpgradeBatch
 SoulRingSection:AddDropdown({
     Name = "Upgrade Levels Per Request",
     Options = {"1", "10", "50", "100"},
@@ -4624,6 +4626,7 @@ SoulRingSection:AddDropdown({
     Flag = "revive_soul_ring_upgrade_batch",
     Callback = function(value)
         soulRingUpgradeBatch = tonumber(value) or 1
+        state.soulRingUpgradeBatch = soulRingUpgradeBatch
     end,
 })
 
@@ -4643,8 +4646,7 @@ SoulRingSection:AddButton({
     end,
 })
 
-local autoSoulRingControl
-autoSoulRingControl = SoulRingSection:AddToggle({
+state.autoSoulRingControl = SoulRingSection:AddToggle({
     Name = "Auto Upgrade Soul Ring",
     Description = "Continuously upgrades page 1, slot 1 using your selected batch",
     Flag = "revive_auto_soul_ring",
@@ -4674,7 +4676,9 @@ SoulRingSection:AddButton({
 })
 
 SoulRingSection:AddLabel("Tracks the live Soul Ring name, level, Soul Stones, and reroll stones. Reroll stays manual.")
+state.refreshSoulRingStatus = refreshSoulRingStatus
 task.defer(refreshSoulRingStatus)
+end
 
 local selectedEnemy = 1
 local tweenSpeed = 90
@@ -5701,8 +5705,8 @@ overnightAutoSoulRingControl = OvernightUpgradeSection:AddToggle({
     Description = "Uses the Soul Ring batch selected in Progress",
     Persist = false,
     Callback = function(enabled)
-        if autoSoulRingControl and autoSoulRingControl:Get() ~= enabled then
-            autoSoulRingControl:Set(enabled)
+        if state.autoSoulRingControl and state.autoSoulRingControl:Get() ~= enabled then
+            state.autoSoulRingControl:Set(enabled)
         end
     end,
 })
@@ -5771,7 +5775,7 @@ OvernightUpgradeSection:AddButton({
         nightmareControl:Set(false)
         autoEquipBestControl:Set(false)
         autoUpgradeControl:Set(false)
-        autoSoulRingControl:Set(false)
+        state.autoSoulRingControl:Set(false)
         dailyRewardControl:Set(false)
         onlineRewardControl:Set(false)
         soulSpawnerControl:Set(false)
@@ -5980,12 +5984,12 @@ task.spawn(function()
             end
         end
         if state.autoSoulRing and isDue("autoSoulRingUpgrade", 0.75) then
-            local ringInfo = refreshSoulRingStatus()
+            local ringInfo = state.refreshSoulRingStatus()
             if ringInfo.Available and ringInfo.SoulStones > 0 then
-                fireRemote("enhanceSoulRing", 0, 0, soulRingUpgradeBatch)
+                fireRemote("enhanceSoulRing", 0, 0, state.soulRingUpgradeBatch)
             end
         elseif isDue("soulRingStatusRefresh", 2) then
-            refreshSoulRingStatus()
+            state.refreshSoulRingStatus()
         end
         if visualState.nameplate and isDue("codexNameplate", 0.25) then
             applyCodexNameplate()
