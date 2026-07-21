@@ -2905,26 +2905,26 @@ local function buildReviveFeatures()
 local HomePage = Window:AddPage("Home")
 local ToolsPage = Window:AddPage("Tools")
 
--- Home uses a compact horizontal category strip so the first screen can focus on
--- overnight automation without burying weapon and upgrade controls below it.
+-- Home uses large frozen decal cards. The images work as the category tabs while
+-- the selected card reveals its controls below without changing the page layout.
 HomePage.LeftColumn.Visible = false
 HomePage.RightColumn.Visible = false
 
 local categoryBar = create("Frame", {
     Name = "HomeCategoryBar",
-    Size = UDim2.new(1, 0, 0, 36),
+    Size = UDim2.new(1, 0, 0, 96),
     BackgroundColor3 = COLORS.surface,
-    BackgroundTransparency = math.max(0.10, hubTransparencyValue - 0.12),
+    BackgroundTransparency = math.max(0.18, hubTransparencyValue - 0.04),
     BorderSizePixel = 0,
     ZIndex = 20,
 }, HomePage.Frame)
-addCorner(categoryBar, 8)
-addStroke(categoryBar, COLORS.line, 1, 0.48)
+addCorner(categoryBar, 10)
+addStroke(categoryBar, COLORS.line, 1, 0.34)
 create("UIPadding", {
     PaddingLeft = UDim.new(0, 6),
     PaddingRight = UDim.new(0, 6),
-    PaddingTop = UDim.new(0, 3),
-    PaddingBottom = UDim.new(0, 3),
+    PaddingTop = UDim.new(0, 6),
+    PaddingBottom = UDim.new(0, 6),
 }, categoryBar)
 create("UIListLayout", {
     FillDirection = Enum.FillDirection.Horizontal,
@@ -2945,10 +2945,16 @@ local function selectHomeCategory(name)
     for _, category in pairs(homeCategories) do
         local active = category == selected
         category.Frame.Visible = active
-        category.Button.BackgroundTransparency = active and 0.10 or 1
-        category.Button.BackgroundColor3 = active and COLORS.accentDark:Lerp(SNOW_WHITE, 0.35) or COLORS.surface
-        category.Button.TextColor3 = active and COLORS.text or COLORS.muted
+        category.Button.BackgroundTransparency = active and 0.02 or 0.16
+        category.Button.BackgroundColor3 = active and COLORS.accentDark:Lerp(SNOW_WHITE, 0.48) or COLORS.surface2
+        category.Button.ImageTransparency = active and 0.02 or 0.14
+        category.Label.TextColor3 = active and SNOW_WHITE or Color3.fromRGB(232, 246, 253)
+        category.Label.TextTransparency = active and 0 or 0.08
+        category.Stroke.Color = active and COLORS.accentDark or COLORS.line
+        category.Stroke.Thickness = active and 2 or 1
+        category.Stroke.Transparency = active and 0.02 or 0.34
         category.Accent.Visible = active
+        category.SelectedGlow.Visible = active
     end
     activeHomeCategory = selected
     HomePage.SearchItems = selected.SearchItems
@@ -2957,37 +2963,103 @@ local function selectHomeCategory(name)
     return true
 end
 
-local function addHomeCategory(name, order)
-    local button = create("TextButton", {
+local function addHomeCategory(name, order, assetId)
+    local button = create("ImageButton", {
         Name = name .. "Tab",
         LayoutOrder = order,
-        Size = UDim2.fromOffset(136, 30),
+        Size = UDim2.fromOffset(142, 84),
         AutoButtonColor = false,
-        BackgroundColor3 = COLORS.surface,
+        BackgroundColor3 = COLORS.surface2,
+        BackgroundTransparency = 0.16,
+        BorderSizePixel = 0,
+        Image = "rbxthumb://type=Asset&id=" .. tostring(assetId) .. "&w=420&h=420",
+        ImageColor3 = Color3.fromRGB(244, 252, 255),
+        ImageTransparency = 0.14,
+        ScaleType = Enum.ScaleType.Crop,
+        ZIndex = 21,
+    }, categoryBar)
+    addCorner(button, 10)
+    local buttonStroke = addStroke(button, COLORS.line, 1, 0.34)
+
+    local selectedGlow = create("Frame", {
+        Name = "SelectedGlow",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(1, 10, 1, 10),
+        BackgroundColor3 = COLORS.accent,
+        BackgroundTransparency = 0.76,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 20,
+    }, button)
+    addCorner(selectedGlow, 13)
+
+    local caption = create("Frame", {
+        Name = "Caption",
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.new(1, 0, 0, 28),
+        BackgroundColor3 = Color3.fromRGB(10, 31, 44),
+        BackgroundTransparency = 0.14,
+        BorderSizePixel = 0,
+        ZIndex = 23,
+    }, button)
+    addCorner(caption, 9)
+    create("UIGradient", {
+        Rotation = 90,
+        Color = ColorSequence.new(Color3.fromRGB(38, 79, 101), Color3.fromRGB(8, 27, 39)),
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.36),
+            NumberSequenceKeypoint.new(1, 0.02),
+        }),
+    }, caption)
+
+    local label = create("TextLabel", {
+        Name = "CategoryName",
+        Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Font = Enum.Font.GothamBold,
         Text = name,
-        TextColor3 = COLORS.muted,
-        TextSize = 12,
-        ZIndex = 21,
-    }, categoryBar)
-    addCorner(button, 6)
+        TextColor3 = Color3.fromRGB(232, 246, 253),
+        TextSize = 13,
+        TextStrokeColor3 = Color3.fromRGB(5, 19, 28),
+        TextStrokeTransparency = 0.22,
+        ZIndex = 24,
+    }, caption)
+
     local accent = create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, 0),
-        Size = UDim2.new(0.62, 0, 0, 3),
-        BackgroundColor3 = COLORS.accentDark,
+        Position = UDim2.new(0.5, 0, 1, -1),
+        Size = UDim2.new(0.68, 0, 0, 4),
+        BackgroundColor3 = SNOW_WHITE,
         BorderSizePixel = 0,
         Visible = false,
-        ZIndex = 22,
+        ZIndex = 25,
     }, button)
-    addCorner(accent, 2)
+    addCorner(accent, 3)
+
+    track(button.MouseEnter:Connect(function()
+        if activeHomeCategory ~= homeCategories[name] then
+            TweenService:Create(button, TweenInfo.new(0.14), {
+                ImageTransparency = 0.04,
+                BackgroundTransparency = 0.08,
+            }):Play()
+        end
+    end))
+    track(button.MouseLeave:Connect(function()
+        if activeHomeCategory ~= homeCategories[name] then
+            TweenService:Create(button, TweenInfo.new(0.14), {
+                ImageTransparency = 0.14,
+                BackgroundTransparency = 0.16,
+            }):Play()
+        end
+    end))
 
     local frame = create("Frame", {
         Name = name .. "Category",
-        Position = UDim2.fromOffset(0, 44),
-        Size = UDim2.new(1, 0, 1, -44),
+        Position = UDim2.fromOffset(0, 104),
+        Size = UDim2.new(1, 0, 1, -104),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Visible = false,
@@ -3026,7 +3098,10 @@ local function addHomeCategory(name, order)
         Name = name,
         Frame = frame,
         Button = button,
+        Label = label,
+        Stroke = buttonStroke,
         Accent = accent,
+        SelectedGlow = selectedGlow,
         LeftColumn = leftColumn,
         RightColumn = rightColumn,
         SearchItems = {},
@@ -3040,11 +3115,11 @@ local function addHomeCategory(name, order)
     return category
 end
 
-local OvernightPage = addHomeCategory("Overnight", 1)
-local CombatPage = addHomeCategory("Combat", 2)
-local WeaponsPage = addHomeCategory("Weapons", 3)
-local ProgressPage = addHomeCategory("Progress", 4)
-local VisualsPage = addHomeCategory("Visuals", 5)
+local OvernightPage = addHomeCategory("Overnight", 1, 13613618140)
+local CombatPage = addHomeCategory("Combat", 2, 105099599251617)
+local WeaponsPage = addHomeCategory("Weapons", 3, 95898332716312)
+local ProgressPage = addHomeCategory("Progress", 4, 139818999438291)
+local VisualsPage = addHomeCategory("Visuals", 5, 5676602141)
 
 local OvernightSection = OvernightPage:AddSection("AFK Essentials", "Left")
 local OvernightUpgradeSection = OvernightPage:AddSection("Overnight Upgrades", "Right")
@@ -3064,7 +3139,7 @@ local VisualSection = VisualsPage:AddSection("Character Visuals", "Left")
 local VisualInfoSection = VisualsPage:AddSection("Visual Status", "Right")
 local NotificationSection = VisualsPage:AddSection("Hub Notifications", "Right")
 local OutfitSection = ToolsPage:AddSection("Local Outfit Preview", "Left")
-local FrozenPresetSection = ToolsPage:AddSection("Frozen Expedition Preset", "Right")
+local FrozenPresetSection = ToolsPage:AddSection("Frozen Codex Armor", "Right")
 local ToolsInfoSection = ToolsPage:AddSection("Tools Status", "Right")
 
 selectHomeCategory("Overnight")
@@ -5336,29 +5411,175 @@ local function createFrozenExpeditionOutfit(character)
         return part
     end
 
-    local deepIce = Color3.fromRGB(57, 128, 179)
-    local glacier = visualColor:Lerp(SNOW_WHITE, 0.28)
-    armorPart("EverestCoat", torso, torso.Size + Vector3.new(0.34, 0.30, 0.24), CFrame.new(0, -0.04, 0.05), deepIce, 0.22)
-    armorPart("IceChestPlate", torso, Vector3.new(math.max(1.25, torso.Size.X * 0.72), math.max(1.35, torso.Size.Y * 0.72), 0.18), CFrame.new(0, 0.02, -(torso.Size.Z * 0.5 + 0.10)), glacier, 0.08)
-    armorPart("ExpeditionPack", torso, Vector3.new(math.max(1.15, torso.Size.X * 0.65), math.max(1.35, torso.Size.Y * 0.70), 0.42), CFrame.new(0, -0.05, torso.Size.Z * 0.5 + 0.20), deepIce, 0.18)
-    armorPart("LeftIceShoulder", torso, Vector3.new(0.62, 0.38, 0.88), CFrame.new(-(torso.Size.X * 0.5 + 0.24), torso.Size.Y * 0.27, 0) * CFrame.Angles(0, 0, math.rad(-18)), glacier, 0.10)
-    armorPart("RightIceShoulder", torso, Vector3.new(0.62, 0.38, 0.88), CFrame.new(torso.Size.X * 0.5 + 0.24, torso.Size.Y * 0.27, 0) * CFrame.Angles(0, 0, math.rad(18)), glacier, 0.10)
-    armorPart("FrozenHood", head, Vector3.new(0.24, math.max(2.1, head.Size.X + 0.38), math.max(2.1, head.Size.Z + 0.38)), CFrame.Angles(0, 0, math.rad(90)), deepIce, 0.18, Enum.PartType.Cylinder)
+    local deepIce = Color3.fromRGB(21, 71, 111)
+    local midIce = Color3.fromRGB(49, 137, 194)
+    local glacier = visualColor:Lerp(SNOW_WHITE, 0.38)
+    local crystal = Color3.fromRGB(218, 248, 255)
 
-    for _, side in ipairs({"Left", "Right"}) do
+    -- A slim undersuit keeps the avatar silhouette instead of replacing it with
+    -- one oversized rectangular coat.
+    armorPart(
+        "ArcticUndersuit",
+        torso,
+        torso.Size + Vector3.new(0.12, 0.10, 0.10),
+        CFrame.new(0, -0.02, 0.02),
+        deepIce,
+        0.48
+    )
+    armorPart(
+        "GlacierBreastplate",
+        torso,
+        Vector3.new(math.max(1.12, torso.Size.X * 0.62), math.max(1.12, torso.Size.Y * 0.60), 0.16),
+        CFrame.new(0, 0.08, -(torso.Size.Z * 0.5 + 0.09)),
+        midIce,
+        0.12
+    )
+    armorPart(
+        "LeftChestFacet",
+        torso,
+        Vector3.new(math.max(0.18, torso.Size.X * 0.13), math.max(0.82, torso.Size.Y * 0.45), 0.12),
+        CFrame.new(-torso.Size.X * 0.34, 0.10, -(torso.Size.Z * 0.5 + 0.08)) * CFrame.Angles(0, 0, math.rad(-16)),
+        glacier,
+        0.18
+    )
+    armorPart(
+        "RightChestFacet",
+        torso,
+        Vector3.new(math.max(0.18, torso.Size.X * 0.13), math.max(0.82, torso.Size.Y * 0.45), 0.12),
+        CFrame.new(torso.Size.X * 0.34, 0.10, -(torso.Size.Z * 0.5 + 0.08)) * CFrame.Angles(0, 0, math.rad(16)),
+        glacier,
+        0.18
+    )
+    local chestCore = armorPart(
+        "CodexIceCore",
+        torso,
+        Vector3.new(0.34, 0.34, 0.13),
+        CFrame.new(0, 0.10, -(torso.Size.Z * 0.5 + 0.20)) * CFrame.Angles(0, 0, math.rad(45)),
+        crystal,
+        0.02
+    )
+    armorPart(
+        "GlacierBelt",
+        torso,
+        Vector3.new(torso.Size.X + 0.18, 0.22, torso.Size.Z + 0.16),
+        CFrame.new(0, -(torso.Size.Y * 0.5 - 0.13), 0.02),
+        deepIce,
+        0.18
+    )
+
+    for _, sideInfo in ipairs({{"Left", -1}, {"Right", 1}}) do
+        local side = sideInfo[1]
+        local sign = sideInfo[2]
+        armorPart(
+            side .. "GlacierPauldron",
+            torso,
+            Vector3.new(0.58, 0.28, 0.72),
+            CFrame.new(sign * (torso.Size.X * 0.5 + 0.22), torso.Size.Y * 0.32, -0.01)
+                * CFrame.Angles(0, 0, math.rad(sign * 18)),
+            glacier,
+            0.13
+        )
+        armorPart(
+            side .. "ShoulderCrystal",
+            torso,
+            Vector3.new(0.16, 0.54, 0.22),
+            CFrame.new(sign * (torso.Size.X * 0.5 + 0.48), torso.Size.Y * 0.42, -0.05)
+                * CFrame.Angles(0, 0, math.rad(sign * 32)),
+            crystal,
+            0.08
+        )
+
+        local lowerArm = character:FindFirstChild(side .. "LowerArm") or character:FindFirstChild(side .. " Arm")
+        if lowerArm then
+            armorPart(
+                side .. "FrostBracer",
+                lowerArm,
+                lowerArm.Size + Vector3.new(0.12, -math.min(0.10, lowerArm.Size.Y * 0.08), 0.14),
+                CFrame.new(0, -lowerArm.Size.Y * 0.12, -0.02),
+                midIce,
+                0.20
+            )
+        end
+
+        local upperLeg = character:FindFirstChild(side .. "UpperLeg")
+        if upperLeg then
+            armorPart(
+                side .. "IceCuisses",
+                upperLeg,
+                Vector3.new(upperLeg.Size.X + 0.10, upperLeg.Size.Y * 0.72, upperLeg.Size.Z + 0.12),
+                CFrame.new(0, -upperLeg.Size.Y * 0.08, -0.03),
+                deepIce,
+                0.28
+            )
+        end
+
         local lowerLeg = character:FindFirstChild(side .. "LowerLeg") or character:FindFirstChild(side .. " Leg")
         if lowerLeg then
-            armorPart(side .. "GlacierBoot", lowerLeg, lowerLeg.Size + Vector3.new(0.22, 0.12, 0.30), CFrame.new(0, -lowerLeg.Size.Y * 0.18, -0.07), deepIce, 0.14)
+            armorPart(
+                side .. "GlacierBoot",
+                lowerLeg,
+                lowerLeg.Size + Vector3.new(0.16, 0.08, 0.22),
+                CFrame.new(0, -lowerLeg.Size.Y * 0.16, -0.05),
+                deepIce,
+                0.22
+            )
+            armorPart(
+                side .. "BootCrystal",
+                lowerLeg,
+                Vector3.new(math.max(0.18, lowerLeg.Size.X * 0.30), math.max(0.38, lowerLeg.Size.Y * 0.32), 0.13),
+                CFrame.new(0, -lowerLeg.Size.Y * 0.25, -(lowerLeg.Size.Z * 0.5 + 0.08)),
+                glacier,
+                0.10
+            )
         end
+    end
+
+    -- The old cylinder crossed the player's eyes. This thin circlet and its
+    -- crystals sit above the face and keep the avatar readable.
+    armorPart(
+        "FrozenCirclet",
+        head,
+        Vector3.new(math.max(1.35, head.Size.X * 0.82), 0.12, 0.10),
+        CFrame.new(0, head.Size.Y * 0.30, -(head.Size.Z * 0.5 + 0.04)),
+        midIce,
+        0.10
+    )
+    for crownIndex = -2, 2 do
+        local crownHeight = crownIndex == 0 and 0.50 or (math.abs(crownIndex) == 1 and 0.38 or 0.27)
+        armorPart(
+            "CrownCrystal" .. tostring(crownIndex + 3),
+            head,
+            Vector3.new(0.12, crownHeight, 0.12),
+            CFrame.new(crownIndex * 0.25, head.Size.Y * 0.5 + crownHeight * 0.32, -0.08)
+                * CFrame.Angles(0, 0, math.rad(crownIndex * -7)),
+            crownIndex == 0 and crystal or glacier,
+            0.08
+        )
+    end
+
+    if chestCore then
+        local coreLight = markVisual(Instance.new("PointLight"))
+        coreLight.Name = "SuitCoreGlow"
+        coreLight.Color = visualColor
+        coreLight.Brightness = 1.35
+        coreLight.Range = 7
+        coreLight.Shadows = false
+        coreLight.Parent = chestCore
+        local glowStart = os.clock()
+        trackVisualConnection(RunService.RenderStepped:Connect(function()
+            if coreLight.Parent then
+                coreLight.Brightness = 1.20 + (math.sin((os.clock() - glowStart) * 2.4) + 1) * 0.22
+            end
+        end))
     end
 
     local highlight = markVisual(Instance.new("Highlight"))
     highlight.Name = "EverestIceBloom"
     highlight.Adornee = model
     highlight.FillColor = visualColor
-    highlight.FillTransparency = 0.72
+    highlight.FillTransparency = 0.86
     highlight.OutlineColor = SNOW_WHITE
-    highlight.OutlineTransparency = 0.10
+    highlight.OutlineTransparency = 0.20
     highlight.DepthMode = Enum.HighlightDepthMode.Occluded
     highlight.Parent = model
 
@@ -5700,8 +5921,8 @@ OutfitSection:AddButton({
 })
 
 frozenOutfitControl = FrozenPresetSection:AddToggle({
-    Name = "Frozen Everest Outfit",
-    Description = "Asset-free icy expedition coat, hood, pack, armor, boots, and snowfall",
+    Name = "Frozen Codex Armor",
+    Description = "Layered ice armor, chest core, circlet crown, bracers, boots, and snowfall",
     Flag = "codex_tools_frozen_everest_outfit",
     Callback = function(enabled)
         visualState.frozenOutfit = enabled
@@ -5709,18 +5930,18 @@ frozenOutfitControl = FrozenPresetSection:AddToggle({
             visualColor = VISUAL_COLORS["Glacier Blue"]
         end
         applyCharacterVisuals()
-        outfitStatusLabel.Text = enabled and "Outfit: Frozen Everest preset equipped" or "Outfit: Frozen preset removed"
+        outfitStatusLabel.Text = enabled and "Outfit: Frozen Codex armor equipped" or "Outfit: Frozen preset removed"
         outfitStatusLabel.TextColor3 = enabled and COLORS.success or COLORS.muted
     end,
 })
 
 FrozenPresetSection:AddButton({
-    Name = "Equip Full Frozen Preset",
-    Description = "Enables the complete local Mount Everest-themed outfit in one click",
+    Name = "Equip Full Codex Armor",
+    Description = "Enables the complete layered frozen armor preset in one click",
     Persist = false,
     Callback = function()
         frozenOutfitControl:Set(true)
-        Window:Notify("Frozen Preset", "Everest expedition outfit equipped locally", 4)
+        Window:Notify("Frozen Preset", "Codex frozen armor equipped locally", 4)
     end,
 })
 
