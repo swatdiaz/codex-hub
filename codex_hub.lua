@@ -73,7 +73,8 @@ local COLORS = {
     accentDark = Color3.fromRGB(102, 164, 194),
     offTrack = Color3.fromRGB(132, 166, 184),
     knob = SNOW_WHITE,
-    success = Color3.fromRGB(147, 220, 177),
+    -- Deep emerald stays readable over the bright, translucent snow theme.
+    success = Color3.fromRGB(24, 118, 82),
     error = Color3.fromRGB(239, 128, 137),
 }
 
@@ -959,6 +960,8 @@ for index, key in ipairs({"General", "AFK", "Special", "Multi", "Farm", "Weapon"
         index == 1 and Enum.Font.GothamBold or Enum.Font.GothamSemibold
     )
     row.TextTruncate = Enum.TextTruncate.AtEnd
+    row.TextStrokeColor3 = Color3.fromRGB(238, 250, 255)
+    row.TextStrokeTransparency = 0.64
     row.ZIndex = 503
     statusWidgetLabels[key] = row
 end
@@ -1513,6 +1516,8 @@ function SectionMethods:AddLabel(text)
     local row = makeControlRow(self, 36)
     local label = makeLabel(row, text, UDim2.fromOffset(12, 0), UDim2.new(1, -24, 1, 0), COLORS.muted, 13, Enum.Font.GothamMedium)
     label.TextWrapped = true
+    label.TextStrokeColor3 = Color3.fromRGB(238, 250, 255)
+    label.TextStrokeTransparency = 0.72
     registerSearchItem(self.Page, row, text)
     return label
 end
