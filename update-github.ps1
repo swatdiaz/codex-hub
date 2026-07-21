@@ -1,12 +1,12 @@
 param(
-    [string]$Message = "Update Codex Revive Hub $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    [string]$Message = "Update Codex Hub $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoDirectory = $PSScriptRoot
-$sourceFile = Join-Path (Split-Path $repoDirectory -Parent) "codex_revive_hub.lua"
-$repoFile = Join-Path $repoDirectory "codex_revive_hub.lua"
+$sourceFile = Join-Path (Split-Path $repoDirectory -Parent) "codex_hub.lua"
+$repoFile = Join-Path $repoDirectory "codex_hub.lua"
 $git = "C:\Program Files\Git\cmd\git.exe"
 
 if (-not (Test-Path -LiteralPath $git)) {
@@ -19,7 +19,7 @@ if (-not (Test-Path -LiteralPath $sourceFile)) {
 
 Copy-Item -LiteralPath $sourceFile -Destination $repoFile -Force
 
-& $git -C $repoDirectory add -- "codex_revive_hub.lua"
+& $git -C $repoDirectory add -- "codex_hub.lua"
 & $git -C $repoDirectory diff --cached --quiet
 
 if ($LASTEXITCODE -eq 0) {
@@ -42,4 +42,4 @@ if ($LASTEXITCODE -ne 0) {
     throw "GitHub push failed."
 }
 
-Write-Host "Published: https://github.com/swatdiaz/codex-revive-hub"
+Write-Host "Published: https://github.com/swatdiaz/codex-hub"
