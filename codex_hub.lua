@@ -53,6 +53,41 @@ local SETTINGS = {
     StatusBackgroundImageId = "rbxthumb://type=Asset&id=2847346557&w=768&h=432",
 }
 
+-- Shared category art stays outside individual game builders so future supported
+-- games can reuse a matching Revive tab decal instead of duplicating asset IDs.
+local CATEGORY_DECALS = {
+    Overnight = 13613618140,
+    Combat = 105099599251617,
+    Weapons = 95898332716312,
+    Progress = 139818999438291,
+    Visuals = 5676602141,
+}
+
+-- Add each new supported experience here. Universe matching keeps support active
+-- across that experience's own teleport places without leaking into other games.
+local SUPPORTED_GAMES = {
+    Revive = {
+        Key = "Revive",
+        DisplayName = "+1 DMG Per Revive",
+        UniverseId = 10171934713,
+        RootPlaceId = 110806816173057,
+        PlaceIds = {
+            [110806816173057] = true,
+        },
+    },
+}
+
+local function resolveGameSupport()
+    for _, support in pairs(SUPPORTED_GAMES) do
+        if game.GameId == support.UniverseId or support.PlaceIds[game.PlaceId] == true then
+            return support
+        end
+    end
+    return nil
+end
+
+local ACTIVE_GAME_SUPPORT = resolveGameSupport()
+
 -- Keep the legacy storage path so existing profiles and autoload selections survive the rebrand.
 -- Profiles remain separated by PlaceId so values never carry into another game.
 local CONFIG_ROOT = "SolixHub/Configs/" .. tostring(game.PlaceId)
@@ -1070,6 +1105,7 @@ local statusGui = create("ScreenGui", {
     IgnoreGuiInset = true,
     ZIndexBehavior = Enum.ZIndexBehavior.Global,
     DisplayOrder = 1003,
+    Enabled = false,
 }, gui.Parent)
 
 local statusFrame = create("Frame", {
@@ -3360,11 +3396,11 @@ local function addHomeCategory(name, order, assetId)
     return category
 end
 
-local OvernightPage = addHomeCategory("Overnight", 1, 13613618140)
-local CombatPage = addHomeCategory("Combat", 2, 105099599251617)
-local WeaponsPage = addHomeCategory("Weapons", 3, 95898332716312)
-local ProgressPage = addHomeCategory("Progress", 4, 139818999438291)
-local VisualsPage = addHomeCategory("Visuals", 5, 5676602141)
+local OvernightPage = addHomeCategory("Overnight", 1, CATEGORY_DECALS.Overnight)
+local CombatPage = addHomeCategory("Combat", 2, CATEGORY_DECALS.Combat)
+local WeaponsPage = addHomeCategory("Weapons", 3, CATEGORY_DECALS.Weapons)
+local ProgressPage = addHomeCategory("Progress", 4, CATEGORY_DECALS.Progress)
+local VisualsPage = addHomeCategory("Visuals", 5, CATEGORY_DECALS.Visuals)
 
 local OvernightSection = OvernightPage:AddSection("AFK Essentials", "Left")
 local OvernightUpgradeSection = OvernightPage:AddSection("Overnight Upgrades", "Right")
@@ -6940,7 +6976,30 @@ track(gui.Destroying:Connect(function()
 end))
 
 end
-buildReviveFeatures()
+
+local function buildUnsupportedGameShell()
+    local HomePage = Window:AddPage("Home")
+    local supportSection = HomePage:AddSection("Game Support", "Left")
+    supportSection:AddLabel("This game is not supported yet.")
+    supportSection:AddLabel("Codex Hub loaded without any game-specific scripts.")
+    supportSection:AddLabel(
+        "PlaceId: " .. tostring(game.PlaceId) .. " | UniverseId: " .. tostring(game.GameId)
+    )
+end
+
+if ACTIVE_GAME_SUPPORT and ACTIVE_GAME_SUPPORT.Key == "Revive" then
+    statusGui.Enabled = true
+    gui:SetAttribute("GameSupported", true)
+    gui:SetAttribute("GameSupportKey", ACTIVE_GAME_SUPPORT.Key)
+    gui:SetAttribute("SupportedUniverseId", ACTIVE_GAME_SUPPORT.UniverseId)
+    buildReviveFeatures()
+else
+    statusGui.Enabled = false
+    gui:SetAttribute("GameSupported", false)
+    gui:SetAttribute("GameSupportKey", "Unsupported")
+    gui:SetAttribute("SupportedUniverseId", 0)
+    buildUnsupportedGameShell()
+end
 
 -- Generic Settings page. Keep this below your feature controls so Auto Load can restore them.
 local SettingsPage = Window:AddPage("Settings")
@@ -6990,7 +7049,7 @@ AppearanceSection:AddButton({
     Persist = false,
     Callback = function()
         frozenAccentControl:Set("Snowstorm White")
-        transparencyControl:Set(0.46)
+        transparencyControl:Set(0.62)
     end,
 })
 
