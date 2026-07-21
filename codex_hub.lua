@@ -83,6 +83,9 @@ local COLORS = {
     sectionDim = Color3.fromRGB(142, 184, 205),
     sectionSuccess = Color3.fromRGB(105, 255, 196),
     sectionError = Color3.fromRGB(255, 151, 160),
+    toggleOn = Color3.fromRGB(0, 151, 255),
+    toggleOnBright = Color3.fromRGB(86, 235, 255),
+    toggleOnStroke = Color3.fromRGB(151, 246, 255),
 }
 
 local UI_FONT = Enum.Font.GothamBold
@@ -1771,20 +1774,47 @@ function SectionMethods:AddToggle(options)
     local trackFrame = create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -12, 0.5, 0),
-        Size = UDim2.fromOffset(44, 22),
+        Size = UDim2.fromOffset(48, 24),
         BackgroundColor3 = COLORS.offTrack,
         BorderSizePixel = 0,
+        ZIndex = 2,
     }, row)
-    addCorner(trackFrame, 11)
+    addCorner(trackFrame, 12)
+    local trackStroke = addStroke(trackFrame, COLORS.offTrack:Lerp(COLORS.sectionText, 0.35), 1.4, 0.48)
+    local onGradient = create("UIGradient", {
+        Enabled = false,
+        Rotation = 0,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, COLORS.toggleOn),
+            ColorSequenceKeypoint.new(1, COLORS.toggleOnBright),
+        }),
+    }, trackFrame)
+
+    local onLabel = create("TextLabel", {
+        Position = UDim2.fromOffset(4, 0),
+        Size = UDim2.fromOffset(22, 24),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Font = Enum.Font.GothamBold,
+        Text = "ON",
+        TextColor3 = Color3.fromRGB(239, 253, 255),
+        TextSize = 8,
+        TextStrokeColor3 = Color3.fromRGB(0, 69, 115),
+        TextStrokeTransparency = 0.25,
+        TextTransparency = 1,
+        ZIndex = 3,
+    }, trackFrame)
 
     local knob = create("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 3, 0.5, 0),
-        Size = UDim2.fromOffset(16, 16),
+        Size = UDim2.fromOffset(18, 18),
         BackgroundColor3 = COLORS.knob,
         BorderSizePixel = 0,
+        ZIndex = 4,
     }, trackFrame)
-    addCorner(knob, 8)
+    addCorner(knob, 9)
+    local knobStroke = addStroke(knob, Color3.fromRGB(210, 246, 255), 1, 0.38)
 
     local button = create("TextButton", {
         AutoButtonColor = false,
@@ -1798,10 +1828,24 @@ function SectionMethods:AddToggle(options)
     local control = {}
     function control:Set(value, silent)
         state = value == true
-        local trackColor = state and COLORS.accent or COLORS.offTrack
-        local knobPosition = state and UDim2.new(1, -19, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
+        local trackColor = state and COLORS.toggleOn or COLORS.offTrack
+        local knobPosition = state and UDim2.new(1, -21, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
+        onGradient.Enabled = state
         TweenService:Create(trackFrame, TweenInfo.new(0.16), {BackgroundColor3 = trackColor}):Play()
-        TweenService:Create(knob, TweenInfo.new(0.16, Enum.EasingStyle.Quad), {Position = knobPosition}):Play()
+        TweenService:Create(trackStroke, TweenInfo.new(0.16), {
+            Color = state and COLORS.toggleOnStroke or COLORS.offTrack:Lerp(COLORS.sectionText, 0.35),
+            Transparency = state and 0.08 or 0.48,
+            Thickness = state and 2 or 1.4,
+        }):Play()
+        TweenService:Create(knob, TweenInfo.new(0.16, Enum.EasingStyle.Quad), {
+            Position = knobPosition,
+            BackgroundColor3 = state and Color3.fromRGB(250, 255, 255) or COLORS.knob,
+        }):Play()
+        TweenService:Create(knobStroke, TweenInfo.new(0.16), {
+            Color = state and COLORS.toggleOnStroke or Color3.fromRGB(210, 246, 255),
+            Transparency = state and 0.05 or 0.38,
+        }):Play()
+        TweenService:Create(onLabel, TweenInfo.new(0.12), {TextTransparency = state and 0 or 1}):Play()
         if not silent then
             safeCallback(options.Callback, state)
         end
