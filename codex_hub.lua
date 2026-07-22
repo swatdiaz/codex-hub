@@ -17,7 +17,10 @@ local LocalPlayer = Players.LocalPlayer
 local SETTINGS = {
     GuiName = "CodexHub",
     Title = "Codex Hub",
-    Discord = "Discord.gg/Codexhub",
+    Discord = "discord.gg/MbergFzz56",
+    DiscordInviteURL = "https://discord.gg/MbergFzz56",
+    AccessKeyHash = 1961304013, -- FNV-1a hash of the current Discord key; the plain key is never shown in the hub.
+    RememberKey = true,
     Creator = "Codex",
     IntroEnabled = true,
     IntroDuration = 5,
@@ -107,6 +110,7 @@ local ACTIVE_GAME_SUPPORT = resolveGameSupport()
 local CONFIG_ROOT = "SolixHub/Configs/" .. tostring(game.PlaceId)
 local PROFILE_FOLDER = CONFIG_ROOT .. "/Profiles"
 local AUTOLOAD_FILE = CONFIG_ROOT .. "/autoload.json"
+local ACCESS_FILE = "SolixHub/Configs/access.json"
 
 local SNOW_WHITE = Color3.fromRGB(246, 252, 255)
 
@@ -281,6 +285,93 @@ local function track(connection)
     return connection
 end
 
+-- Shared motion primitives keep every control consistent. Short Quint/Back tweens
+-- mirror the responsive reference library without turning the interface into noise.
+local activeTweens = setmetatable({}, {__mode = "k"})
+local function fluidTween(object, duration, properties, style, direction)
+    if not object or not object.Parent then
+        return nil
+    end
+    local previous = activeTweens[object]
+    if previous then
+        pcall(function()
+            previous:Cancel()
+        end)
+    end
+    local tween = TweenService:Create(
+        object,
+        TweenInfo.new(
+            duration or 0.18,
+            style or Enum.EasingStyle.Quint,
+            direction or Enum.EasingDirection.Out
+        ),
+        properties
+    )
+    activeTweens[object] = tween
+    tween:Play()
+    task.delay((duration or 0.18) + 0.04, function()
+        if activeTweens[object] == tween then
+            activeTweens[object] = nil
+        end
+    end)
+    return tween
+end
+
+local function attachFluidScale(button, visual, hoverScale, pressedScale)
+    visual = visual or button
+    local scale = visual:FindFirstChild("FluidInteractionScale")
+    if not scale then
+        scale = create("UIScale", {Name = "FluidInteractionScale", Scale = 1}, visual)
+    end
+    local hovering = false
+    track(button.MouseEnter:Connect(function()
+        hovering = true
+        fluidTween(scale, 0.18, {Scale = hoverScale or 1.018}, Enum.EasingStyle.Quint)
+    end))
+    track(button.MouseLeave:Connect(function()
+        hovering = false
+        fluidTween(scale, 0.20, {Scale = 1}, Enum.EasingStyle.Quint)
+    end))
+    track(button.MouseButton1Down:Connect(function()
+        fluidTween(scale, 0.08, {Scale = pressedScale or 0.985}, Enum.EasingStyle.Quad)
+    end))
+    track(button.MouseButton1Up:Connect(function()
+        fluidTween(scale, 0.20, {Scale = hovering and (hoverScale or 1.018) or 1}, Enum.EasingStyle.Back)
+    end))
+    return scale
+end
+
+local function attachPressRipple(button, surface)
+    surface = surface or button
+    surface.ClipsDescendants = true
+    track(button.MouseButton1Down:Connect(function(x, y)
+        if not surface.Parent then
+            return
+        end
+        local diameter = math.max(surface.AbsoluteSize.X, surface.AbsoluteSize.Y) * 1.8
+        local ripple = create("Frame", {
+            Name = "PressRipple",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromOffset(x - surface.AbsolutePosition.X, y - surface.AbsolutePosition.Y),
+            Size = UDim2.fromOffset(0, 0),
+            BackgroundColor3 = COLORS.accent,
+            BackgroundTransparency = 0.50,
+            BorderSizePixel = 0,
+            ZIndex = math.max(1, button.ZIndex - 1),
+        }, surface)
+        addCorner(ripple, 999)
+        fluidTween(ripple, 0.34, {
+            Size = UDim2.fromOffset(diameter, diameter),
+            BackgroundTransparency = 1,
+        }, Enum.EasingStyle.Quint)
+        task.delay(0.38, function()
+            if ripple.Parent then
+                ripple:Destroy()
+            end
+        end)
+    end))
+end
+
 local gui = create("ScreenGui", {
     Name = SETTINGS.GuiName,
     ResetOnSpawn = false,
@@ -422,7 +513,7 @@ local snowLayer = create("Frame", {
     BorderSizePixel = 0,
 }, snowGui)
 
-local main = create("Frame", {
+local main = create("CanvasGroup", {
     Name = "CodexHub",
     Active = true,
     Visible = false,
@@ -431,6 +522,7 @@ local main = create("Frame", {
     Size = UDim2.fromOffset(850, 560),
     BackgroundColor3 = COLORS.shell,
     BackgroundTransparency = hubTransparencyValue,
+    GroupTransparency = 0,
     BorderSizePixel = 0,
     ClipsDescendants = false,
 }, gui)
@@ -1356,14 +1448,33 @@ local Window = {
 }
 
 local hubVisible = true
+local hubVisibilityToken = 0
 
 function Window:SetVisible(visible)
+    hubVisibilityToken += 1
+    local token = hubVisibilityToken
     hubVisible = visible == true
-    if hubVisible and self.ClampToViewport then
-        self:ClampToViewport(Window.Minimized and UDim2.fromOffset(850, 46) or UDim2.fromOffset(850, 560))
+    if hubVisible then
+        gui.Enabled = true
+        snowGui.Enabled = SETTINGS.SnowEnabled
+        main.Visible = true
+        if self.ClampToViewport then
+            self:ClampToViewport(Window.Minimized and UDim2.fromOffset(850, 46) or UDim2.fromOffset(850, 560))
+        end
+        main.GroupTransparency = math.max(main.GroupTransparency, 0.82)
+        uiScale.Scale = math.min(uiScale.Scale, 0.955)
+        fluidTween(main, 0.24, {GroupTransparency = 0}, Enum.EasingStyle.Quint)
+        fluidTween(uiScale, 0.28, {Scale = 1}, Enum.EasingStyle.Back)
+    else
+        fluidTween(main, 0.18, {GroupTransparency = 1}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        fluidTween(uiScale, 0.18, {Scale = 0.955}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        task.delay(0.19, function()
+            if token == hubVisibilityToken and not hubVisible then
+                gui.Enabled = false
+                snowGui.Enabled = false
+            end
+        end)
     end
-    gui.Enabled = hubVisible
-    snowGui.Enabled = SETTINGS.SnowEnabled and hubVisible
     setHubMusicVisible(hubVisible, false)
 end
 
@@ -1770,10 +1881,21 @@ local function makeControlRow(section, height)
         BackgroundColor3 = COLORS.sectionRow,
         BackgroundTransparency = 0.70,
         BorderSizePixel = 0,
+        ClipsDescendants = true,
     }, section.Body)
     addCorner(row, 7)
     addStroke(row, COLORS.accentDark, 1, 0.58)
     return row
+end
+
+local function attachControlMotion(button, row, hoverTransparency)
+    attachFluidScale(button, row, 1.006, 0.994)
+    track(button.MouseEnter:Connect(function()
+        fluidTween(row, 0.16, {BackgroundTransparency = hoverTransparency or 0.57})
+    end))
+    track(button.MouseLeave:Connect(function()
+        fluidTween(row, 0.20, {BackgroundTransparency = 0.70})
+    end))
 end
 
 local SectionMethods = {}
@@ -1813,11 +1935,13 @@ function SectionMethods:AddButton(options)
         ZIndex = 5,
     }, row)
 
+    attachControlMotion(button, row, 0.52)
+    attachPressRipple(button, row)
     track(button.MouseEnter:Connect(function()
-        TweenService:Create(row, TweenInfo.new(0.12), {BackgroundTransparency = 0.52}):Play()
+        fluidTween(arrow, 0.18, {Position = UDim2.new(1, -31, 0, 0), TextTransparency = 0})
     end))
     track(button.MouseLeave:Connect(function()
-        TweenService:Create(row, TweenInfo.new(0.12), {BackgroundTransparency = 0.70}):Play()
+        fluidTween(arrow, 0.18, {Position = UDim2.new(1, -36, 0, 0), TextTransparency = 0.08})
     end))
     track(button.MouseButton1Click:Connect(function()
         safeCallback(options.Callback)
@@ -1913,21 +2037,22 @@ function SectionMethods:AddToggle(options)
         local trackColor = state and COLORS.toggleOn or COLORS.offTrack
         local knobPosition = state and UDim2.new(1, -21, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
         onGradient.Enabled = state
-        TweenService:Create(trackFrame, TweenInfo.new(0.16), {BackgroundColor3 = trackColor}):Play()
-        TweenService:Create(trackStroke, TweenInfo.new(0.16), {
+        fluidTween(trackFrame, 0.18, {BackgroundColor3 = trackColor})
+        fluidTween(trackStroke, 0.18, {
             Color = state and COLORS.toggleOnStroke or COLORS.offTrack:Lerp(COLORS.sectionText, 0.35),
             Transparency = state and 0.08 or 0.48,
             Thickness = state and 2 or 1.4,
-        }):Play()
-        TweenService:Create(knob, TweenInfo.new(0.16, Enum.EasingStyle.Quad), {
+        })
+        fluidTween(knob, 0.24, {
             Position = knobPosition,
             BackgroundColor3 = state and Color3.fromRGB(250, 255, 255) or COLORS.knob,
-        }):Play()
-        TweenService:Create(knobStroke, TweenInfo.new(0.16), {
+            Size = state and UDim2.fromOffset(19, 19) or UDim2.fromOffset(18, 18),
+        }, Enum.EasingStyle.Back)
+        fluidTween(knobStroke, 0.18, {
             Color = state and COLORS.toggleOnStroke or Color3.fromRGB(210, 246, 255),
             Transparency = state and 0.05 or 0.38,
-        }):Play()
-        TweenService:Create(onLabel, TweenInfo.new(0.12), {TextTransparency = state and 0 or 1}):Play()
+        })
+        fluidTween(onLabel, 0.14, {TextTransparency = state and 0 or 1})
         if not silent then
             safeCallback(options.Callback, state)
         end
@@ -1936,6 +2061,8 @@ function SectionMethods:AddToggle(options)
         return state
     end
 
+    attachControlMotion(button, row, 0.59)
+    attachPressRipple(button, row)
     track(button.MouseButton1Click:Connect(function()
         local nextState = not state
         playToggleClick(nextState)
@@ -1957,11 +2084,11 @@ function SectionMethods:AddDropdown(options)
     local row = create("Frame", {
         Name = "DropdownRow",
         LayoutOrder = self.NextOrder,
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
+        Size = UDim2.new(1, 0, 0, 50),
         BackgroundColor3 = COLORS.sectionRow,
         BackgroundTransparency = 0.70,
         BorderSizePixel = 0,
+        ClipsDescendants = true,
     }, self.Body)
     addCorner(row, 7)
     addStroke(row, COLORS.accentDark, 1, 0.58)
@@ -1994,10 +2121,10 @@ function SectionMethods:AddDropdown(options)
         LayoutOrder = 2,
         Visible = false,
         Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundColor3 = Color3.fromRGB(7, 20, 33),
         BackgroundTransparency = 0.22,
         BorderSizePixel = 0,
+        ClipsDescendants = true,
     }, row)
     create("UIListLayout", {
         Padding = UDim.new(0, 2),
@@ -2012,10 +2139,36 @@ function SectionMethods:AddDropdown(options)
 
     local control = {}
 
+    local function getOptionsHeight()
+        local count = #values
+        return count > 0 and (8 + count * 34 + math.max(0, count - 1) * 2) or 0
+    end
+
     local function setOpen(value)
         open = value == true
-        optionHolder.Visible = open
-        arrow.Text = open and "^" or "v"
+        local optionsHeight = getOptionsHeight()
+        if open then
+            optionHolder.Visible = true
+            optionHolder.Size = UDim2.new(1, 0, 0, 0)
+            fluidTween(optionHolder, 0.22, {Size = UDim2.new(1, 0, 0, optionsHeight)})
+            fluidTween(row, 0.22, {
+                Size = UDim2.new(1, 0, 0, 50 + optionsHeight),
+                BackgroundTransparency = 0.54,
+            })
+            fluidTween(arrow, 0.22, {Rotation = 180}, Enum.EasingStyle.Back)
+        else
+            fluidTween(optionHolder, 0.18, {Size = UDim2.new(1, 0, 0, 0)}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+            fluidTween(row, 0.20, {
+                Size = UDim2.new(1, 0, 0, 50),
+                BackgroundTransparency = 0.70,
+            })
+            fluidTween(arrow, 0.18, {Rotation = 0})
+            task.delay(0.19, function()
+                if not open and optionHolder.Parent then
+                    optionHolder.Visible = false
+                end
+            end)
+        end
     end
 
     local function rebuildOptions()
@@ -2040,6 +2193,20 @@ function SectionMethods:AddDropdown(options)
                 TextXAlignment = Enum.TextXAlignment.Left,
             }, optionHolder)
             addCorner(optionButton, 4)
+            attachFluidScale(optionButton, optionButton, 1.012, 0.985)
+            attachPressRipple(optionButton, optionButton)
+            track(optionButton.MouseEnter:Connect(function()
+                fluidTween(optionButton, 0.14, {
+                    BackgroundTransparency = 0.10,
+                    TextColor3 = COLORS.sectionText,
+                })
+            end))
+            track(optionButton.MouseLeave:Connect(function()
+                fluidTween(optionButton, 0.16, {
+                    BackgroundTransparency = 0.30,
+                    TextColor3 = COLORS.sectionMuted,
+                })
+            end))
             track(optionButton.MouseButton1Click:Connect(function()
                 control:Set(value)
                 setOpen(false)
@@ -2064,12 +2231,30 @@ function SectionMethods:AddDropdown(options)
             control:Set(nil, true)
         end
         rebuildOptions()
+        if open then
+            local height = getOptionsHeight()
+            optionHolder.Size = UDim2.new(1, 0, 0, height)
+            row.Size = UDim2.new(1, 0, 0, 50 + height)
+        end
     end
     function control:Close()
         setOpen(false)
     end
 
+    attachFluidScale(topButton, top, 1.004, 0.992)
+    attachPressRipple(topButton, top)
+    track(topButton.MouseEnter:Connect(function()
+        if not open then
+            fluidTween(row, 0.16, {BackgroundTransparency = 0.58})
+        end
+    end))
+    track(topButton.MouseLeave:Connect(function()
+        if not open then
+            fluidTween(row, 0.18, {BackgroundTransparency = 0.70})
+        end
+    end))
     track(topButton.MouseButton1Click:Connect(function()
+        playToggleClick(not open)
         setOpen(not open)
     end))
 
@@ -2114,6 +2299,7 @@ function SectionMethods:AddSlider(options)
         BorderSizePixel = 0,
     }, bar)
     addCorner(knob, 7)
+    local knobStroke = addStroke(knob, COLORS.accent, 1, 0.34)
 
     local hitbox = create("TextButton", {
         AutoButtonColor = false,
@@ -2140,8 +2326,13 @@ function SectionMethods:AddSlider(options)
         numeric = minimum + math.floor(((numeric - minimum) / step) + 0.5) * step
         value = math.clamp(numeric, minimum, maximum)
         local alpha = maximum == minimum and 0 or (value - minimum) / (maximum - minimum)
-        fill.Size = UDim2.fromScale(alpha, 1)
-        knob.Position = UDim2.fromScale(alpha, 0.5)
+        if dragging then
+            fill.Size = UDim2.fromScale(alpha, 1)
+            knob.Position = UDim2.fromScale(alpha, 0.5)
+        else
+            fluidTween(fill, 0.18, {Size = UDim2.fromScale(alpha, 1)}, Enum.EasingStyle.Quint)
+            fluidTween(knob, 0.22, {Position = UDim2.fromScale(alpha, 0.5)}, Enum.EasingStyle.Back)
+        end
         valueLabel.Text = formatValue(value)
         if not silent then
             safeCallback(options.Callback, value)
@@ -2162,6 +2353,8 @@ function SectionMethods:AddSlider(options)
     track(hitbox.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
+            fluidTween(knob, 0.14, {Size = UDim2.fromOffset(18, 18), BackgroundColor3 = SNOW_WHITE}, Enum.EasingStyle.Back)
+            fluidTween(knobStroke, 0.14, {Transparency = 0.04, Thickness = 2})
             updateFromInput(input)
         end
     end))
@@ -2173,6 +2366,20 @@ function SectionMethods:AddSlider(options)
     track(UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
+            fluidTween(knob, 0.18, {Size = UDim2.fromOffset(14, 14), BackgroundColor3 = COLORS.knob}, Enum.EasingStyle.Back)
+            fluidTween(knobStroke, 0.18, {Transparency = 0.34, Thickness = 1})
+        end
+    end))
+
+    attachFluidScale(hitbox, row, 1.003, 0.997)
+    track(hitbox.MouseEnter:Connect(function()
+        fluidTween(row, 0.16, {BackgroundTransparency = 0.58})
+        fluidTween(knob, 0.16, {Size = UDim2.fromOffset(16, 16)})
+    end))
+    track(hitbox.MouseLeave:Connect(function()
+        if not dragging then
+            fluidTween(row, 0.20, {BackgroundTransparency = 0.70})
+            fluidTween(knob, 0.18, {Size = UDim2.fromOffset(14, 14)})
         end
     end))
 
@@ -2203,13 +2410,22 @@ function SectionMethods:AddInput(options)
         TextXAlignment = Enum.TextXAlignment.Left,
     }, row)
     addCorner(box, 4)
+    local boxStroke = addStroke(box, COLORS.accentDark, 1, 0.62)
     create("UIPadding", {
         PaddingLeft = UDim.new(0, 10),
         PaddingRight = UDim.new(0, 10),
     }, box)
 
     track(box.FocusLost:Connect(function(enterPressed)
+        fluidTween(box, 0.18, {BackgroundTransparency = 0.24})
+        fluidTween(boxStroke, 0.18, {Transparency = 0.62, Thickness = 1})
+        fluidTween(row, 0.20, {BackgroundTransparency = 0.70})
         safeCallback(options.Callback, box.Text, enterPressed)
+    end))
+    track(box.Focused:Connect(function()
+        fluidTween(box, 0.16, {BackgroundTransparency = 0.08})
+        fluidTween(boxStroke, 0.16, {Transparency = 0.10, Thickness = 2})
+        fluidTween(row, 0.16, {BackgroundTransparency = 0.56})
     end))
 
     registerSearchItem(self.Page, row, name)
@@ -2384,10 +2600,11 @@ function Window:AddPage(name)
         ZIndex = 5,
     }, navRow)
 
-    local pageFrame = create("Frame", {
+    local pageFrame = create("CanvasGroup", {
         Name = name .. "Page",
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
+        GroupTransparency = 1,
         BorderSizePixel = 0,
         Visible = false,
     }, pageHolder)
@@ -2436,6 +2653,21 @@ function Window:AddPage(name)
     }, {__index = PageMethods})
     self.Pages[name] = page
 
+    attachFluidScale(navButton, navRow, 1.045, 0.92)
+    attachPressRipple(navButton, navRow)
+    track(navButton.MouseEnter:Connect(function()
+        if self.ActivePage ~= page then
+            fluidTween(navRow, 0.16, {BackgroundTransparency = 0.56})
+            fluidTween(navText, 0.16, {TextColor3 = COLORS.text})
+        end
+    end))
+    track(navButton.MouseLeave:Connect(function()
+        if self.ActivePage ~= page then
+            fluidTween(navRow, 0.18, {BackgroundTransparency = 1})
+            fluidTween(navText, 0.18, {TextColor3 = COLORS.muted})
+        end
+    end))
+
     track(navButton.MouseButton1Click:Connect(function()
         self:SelectPage(name)
     end))
@@ -2452,18 +2684,45 @@ function Window:SelectPage(name)
         return false
     end
 
+    local previous = self.ActivePage
+    self.ActivePage = target
     for _, page in pairs(self.Pages) do
         local active = page == target
-        page.Frame.Visible = active
+        if active then
+            page.Frame.Visible = true
+            if page ~= previous then
+                page.Frame.Position = UDim2.fromOffset(14, 0)
+                page.Frame.GroupTransparency = 1
+                fluidTween(page.Frame, 0.26, {
+                    Position = UDim2.fromOffset(0, 0),
+                    GroupTransparency = 0,
+                }, Enum.EasingStyle.Quint)
+            else
+                page.Frame.Position = UDim2.fromOffset(0, 0)
+                page.Frame.GroupTransparency = 0
+            end
+        elseif page.Frame.Visible then
+            fluidTween(page.Frame, 0.16, {
+                Position = UDim2.fromOffset(-10, 0),
+                GroupTransparency = 1,
+            }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+            task.delay(0.17, function()
+                if self.ActivePage ~= page and page.Frame.Parent then
+                    page.Frame.Visible = false
+                    page.Frame.Position = UDim2.fromOffset(0, 0)
+                end
+            end)
+        end
         page.NavAccent.Visible = active
-        page.NavRow.BackgroundColor3 = active and COLORS.accentDark:Lerp(SNOW_WHITE, 0.30) or COLORS.surface
-        page.NavRow.BackgroundTransparency = active and 0.18 or 1
-        page.NavText.TextColor3 = active and COLORS.text or COLORS.muted
+        fluidTween(page.NavRow, 0.18, {
+            BackgroundColor3 = active and COLORS.accentDark:Lerp(SNOW_WHITE, 0.30) or COLORS.surface,
+            BackgroundTransparency = active and 0.18 or 1,
+        })
+        fluidTween(page.NavText, 0.18, {TextColor3 = active and COLORS.text or COLORS.muted})
         page.NavText.TextStrokeColor3 = SNOW_WHITE
         page.NavText.TextStrokeTransparency = active and 0.72 or 1
     end
 
-    self.ActivePage = target
     searchBox.Text = ""
     return true
 end
@@ -2668,6 +2927,323 @@ function Window:GetAutoLoad()
         return false, ""
     end
     return metadata.enabled == true, sanitizeProfileName(metadata.profile)
+end
+
+local function multiplyUnsigned32(left, right)
+    local leftLow = bit32.band(left, 0xFFFF)
+    local leftHigh = bit32.rshift(left, 16)
+    local rightLow = bit32.band(right, 0xFFFF)
+    local rightHigh = bit32.rshift(right, 16)
+    local low = leftLow * rightLow
+    local middle = (leftHigh * rightLow + leftLow * rightHigh) * 65536
+    return (low + middle) % 4294967296
+end
+
+local function hashAccessKey(value)
+    local hash = 2166136261
+    local text = tostring(value or "")
+    for index = 1, #text do
+        hash = multiplyUnsigned32(bit32.bxor(hash, string.byte(text, index)), 16777619)
+    end
+    return hash
+end
+
+local function hasRememberedAccess()
+    if _G.CodexHubAccessHash == SETTINGS.AccessKeyHash then
+        return true
+    end
+    if not SETTINGS.RememberKey or not hasProfileFileApi() or not isfile(ACCESS_FILE) then
+        return false
+    end
+    local ok, metadata = pcall(function()
+        return HttpService:JSONDecode(readfile(ACCESS_FILE))
+    end)
+    return ok and type(metadata) == "table" and tonumber(metadata.keyHash) == SETTINGS.AccessKeyHash
+end
+
+local function rememberAccess()
+    _G.CodexHubAccessHash = SETTINGS.AccessKeyHash
+    if not SETTINGS.RememberKey or not hasProfileFileApi() then
+        return
+    end
+    pcall(function()
+        ensureFolder("SolixHub/Configs")
+        writefile(ACCESS_FILE, HttpService:JSONEncode({
+            version = 1,
+            keyHash = SETTINGS.AccessKeyHash,
+        }))
+    end)
+end
+
+local function forgetRememberedAccess()
+    _G.CodexHubAccessHash = nil
+    if type(isfile) == "function" and type(delfile) == "function" and isfile(ACCESS_FILE) then
+        pcall(delfile, ACCESS_FILE)
+    end
+end
+
+local function copyText(value)
+    local textValue = tostring(value or "")
+    local clipboardFunctions = {
+        type(setclipboard) == "function" and setclipboard or nil,
+        type(toclipboard) == "function" and toclipboard or nil,
+        type(setrbxclipboard) == "function" and setrbxclipboard or nil,
+    }
+    for _, clipboardFunction in ipairs(clipboardFunctions) do
+        if clipboardFunction and pcall(clipboardFunction, textValue) then
+            return true
+        end
+    end
+    local clipboardTable = type(Clipboard) == "table" and Clipboard or nil
+    if clipboardTable and type(clipboardTable.set) == "function" and pcall(clipboardTable.set, textValue) then
+        return true
+    end
+    return false
+end
+
+function Window:RequestKeyAccess(onGranted)
+    if hasRememberedAccess() then
+        gui:SetAttribute("AccessGateState", "Remembered")
+        safeCallback(onGranted)
+        return true
+    end
+
+    hubVisible = false
+    main.Visible = false
+    setHubMusicVisible(false, false)
+    gui:SetAttribute("AccessGateState", "Locked")
+    gui:SetAttribute("DiscordInviteURL", SETTINGS.DiscordInviteURL)
+
+    local gate = create("CanvasGroup", {
+        Name = "CodexAccessGate",
+        Active = true,
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.fromRGB(2, 10, 17),
+        BackgroundTransparency = 0.10,
+        BorderSizePixel = 0,
+        GroupTransparency = 1,
+        ZIndex = 900,
+    }, gui)
+    create("UIGradient", {
+        Rotation = 118,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(2, 9, 15)),
+            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(12, 35, 50)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(4, 17, 27)),
+        }),
+    }, gate)
+
+    local card = create("ImageLabel", {
+        Name = "FrozenKeyCard",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(520, 356),
+        BackgroundColor3 = Color3.fromRGB(5, 20, 31),
+        BackgroundTransparency = 0.08,
+        BorderSizePixel = 0,
+        Image = SETTINGS.PanelBackgroundImageId,
+        ImageColor3 = Color3.fromRGB(136, 194, 221),
+        ImageTransparency = 0.24,
+        ScaleType = Enum.ScaleType.Crop,
+        ZIndex = 901,
+    }, gate)
+    addCorner(card, 18)
+    local cardStroke = addStroke(card, COLORS.accent, 2, 0.10)
+    local cardScale = create("UIScale", {Scale = 0.90}, card)
+
+    local shade = create("Frame", {
+        Name = "ReadabilityShade",
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.fromRGB(3, 16, 26),
+        BackgroundTransparency = 0.18,
+        BorderSizePixel = 0,
+        ZIndex = 902,
+    }, card)
+    addCorner(shade, 18)
+
+    local logo = create("ImageLabel", {
+        Name = "CodexLogo",
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 19),
+        Size = UDim2.fromOffset(64, 64),
+        BackgroundColor3 = Color3.fromRGB(8, 28, 42),
+        BackgroundTransparency = 0.16,
+        BorderSizePixel = 0,
+        Image = SETTINGS.ProfileLogoImageId,
+        ScaleType = Enum.ScaleType.Fit,
+        ZIndex = 904,
+    }, card)
+    addCorner(logo, 15)
+    addStroke(logo, COLORS.accent, 1.5, 0.12)
+
+    local title = makeLabel(card, "CODEX HUB ACCESS", UDim2.fromOffset(0, 89), UDim2.new(1, 0, 0, 34), SNOW_WHITE, 25, Enum.Font.GothamBold)
+    title.TextXAlignment = Enum.TextXAlignment.Center
+    title.TextStrokeColor3 = Color3.fromRGB(0, 8, 14)
+    title.TextStrokeTransparency = 0.22
+    title.ZIndex = 904
+
+    local description = makeLabel(
+        card,
+        "Join Discord to get the key, see supported games, and send feedback or suggestions.",
+        UDim2.fromOffset(36, 123),
+        UDim2.new(1, -72, 0, 42),
+        COLORS.sectionMuted,
+        12,
+        Enum.Font.GothamMedium
+    )
+    description.TextWrapped = true
+    description.TextXAlignment = Enum.TextXAlignment.Center
+    description.ZIndex = 904
+
+    local keyBox = create("TextBox", {
+        Name = "DiscordKeyInput",
+        Position = UDim2.fromOffset(38, 176),
+        Size = UDim2.new(1, -76, 0, 48),
+        BackgroundColor3 = Color3.fromRGB(3, 15, 25),
+        BackgroundTransparency = 0.12,
+        BorderSizePixel = 0,
+        ClearTextOnFocus = false,
+        Font = Enum.Font.GothamSemibold,
+        PlaceholderText = "Enter the key from Discord",
+        PlaceholderColor3 = COLORS.sectionDim,
+        Text = "",
+        TextColor3 = SNOW_WHITE,
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 904,
+    }, card)
+    addCorner(keyBox, 10)
+    local keyStroke = addStroke(keyBox, COLORS.accentDark, 1.5, 0.18)
+    create("UIPadding", {
+        PaddingLeft = UDim.new(0, 14),
+        PaddingRight = UDim.new(0, 14),
+    }, keyBox)
+
+    local status = makeLabel(card, "The key is only posted inside the Codex Hub Discord.", UDim2.fromOffset(38, 226), UDim2.new(1, -76, 0, 24), COLORS.sectionMuted, 11, Enum.Font.GothamMedium)
+    status.TextXAlignment = Enum.TextXAlignment.Center
+    status.ZIndex = 904
+
+    local unlockButton = create("TextButton", {
+        Name = "UnlockCodexHub",
+        Position = UDim2.fromOffset(38, 258),
+        Size = UDim2.new(0.54, -5, 0, 52),
+        AutoButtonColor = false,
+        BackgroundColor3 = COLORS.toggleOn,
+        BackgroundTransparency = 0.04,
+        BorderSizePixel = 0,
+        Font = Enum.Font.GothamBold,
+        Text = "UNLOCK CODEX HUB",
+        TextColor3 = SNOW_WHITE,
+        TextSize = 13,
+        ZIndex = 904,
+    }, card)
+    addCorner(unlockButton, 11)
+    addStroke(unlockButton, COLORS.toggleOnStroke, 1.5, 0.12)
+
+    local discordButton = create("TextButton", {
+        Name = "CopyDiscordInvite",
+        Position = UDim2.new(0.54, 43, 0, 258),
+        Size = UDim2.new(0.46, -81, 0, 52),
+        AutoButtonColor = false,
+        BackgroundColor3 = Color3.fromRGB(13, 42, 60),
+        BackgroundTransparency = 0.08,
+        BorderSizePixel = 0,
+        Font = Enum.Font.GothamBold,
+        Text = "COPY DISCORD",
+        TextColor3 = COLORS.sectionText,
+        TextSize = 13,
+        ZIndex = 904,
+    }, card)
+    addCorner(discordButton, 11)
+    addStroke(discordButton, COLORS.accentDark, 1.5, 0.14)
+
+    local footer = makeLabel(card, SETTINGS.Discord .. "  |  Right Ctrl opens or closes the hub", UDim2.fromOffset(30, 319), UDim2.new(1, -60, 0, 22), COLORS.sectionDim, 10, Enum.Font.GothamMedium)
+    footer.TextXAlignment = Enum.TextXAlignment.Center
+    footer.ZIndex = 904
+
+    attachFluidScale(unlockButton, unlockButton, 1.018, 0.965)
+    attachPressRipple(unlockButton, unlockButton)
+    attachFluidScale(discordButton, discordButton, 1.018, 0.965)
+    attachPressRipple(discordButton, discordButton)
+
+    track(keyBox.Focused:Connect(function()
+        fluidTween(keyStroke, 0.16, {Transparency = 0.02, Thickness = 2})
+        fluidTween(keyBox, 0.16, {BackgroundTransparency = 0.02})
+    end))
+    track(keyBox.FocusLost:Connect(function()
+        fluidTween(keyStroke, 0.18, {Transparency = 0.18, Thickness = 1.5})
+        fluidTween(keyBox, 0.18, {BackgroundTransparency = 0.12})
+    end))
+
+    local unlocking = false
+    local function grantAccess()
+        if unlocking then
+            return
+        end
+        local supplied = tostring(keyBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if hashAccessKey(supplied) ~= SETTINGS.AccessKeyHash then
+            playToggleClick(false)
+            status.Text = "That key is not valid. Copy the Discord invite and check #get-script-and-key."
+            status.TextColor3 = COLORS.sectionError
+            fluidTween(cardStroke, 0.12, {Color = COLORS.error, Transparency = 0.02})
+            local original = card.Position
+            fluidTween(card, 0.06, {Position = original + UDim2.fromOffset(-8, 0)}, Enum.EasingStyle.Linear)
+            task.delay(0.07, function()
+                if card.Parent then
+                    fluidTween(card, 0.10, {Position = original}, Enum.EasingStyle.Back)
+                    fluidTween(cardStroke, 0.24, {Color = COLORS.accent, Transparency = 0.10})
+                end
+            end)
+            return
+        end
+
+        unlocking = true
+        rememberAccess()
+        gui:SetAttribute("AccessGateState", "Granted")
+        status.Text = "Access granted. Building Codex Hub..."
+        status.TextColor3 = COLORS.sectionSuccess
+        playToggleClick(true)
+        fluidTween(gate, 0.30, {GroupTransparency = 1}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        fluidTween(cardScale, 0.30, {Scale = 1.08}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        task.delay(0.31, function()
+            if gate.Parent then
+                gate:Destroy()
+            end
+            hubVisible = true
+            safeCallback(onGranted)
+        end)
+    end
+
+    track(unlockButton.MouseButton1Click:Connect(grantAccess))
+    track(keyBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            grantAccess()
+        end
+    end))
+    track(discordButton.MouseButton1Click:Connect(function()
+        playToggleClick(true)
+        if copyText(SETTINGS.DiscordInviteURL) then
+            status.Text = "Discord invite copied. Join for the key, supported games, and support."
+            status.TextColor3 = COLORS.sectionSuccess
+        else
+            status.Text = "Clipboard access is unavailable. Open " .. SETTINGS.Discord
+            status.TextColor3 = COLORS.sectionError
+        end
+    end))
+
+    fluidTween(gate, 0.28, {GroupTransparency = 0}, Enum.EasingStyle.Quint)
+    fluidTween(cardScale, 0.36, {Scale = 1}, Enum.EasingStyle.Back)
+    task.delay(0.34, function()
+        if keyBox.Parent then
+            keyBox:CaptureFocus()
+        end
+    end)
+    return false
+end
+
+function Window:ForgetKeyAccess()
+    forgetRememberedAccess()
+    gui:SetAttribute("AccessGateState", "Forgotten")
 end
 
 function Window:Destroy()
@@ -3128,18 +3704,26 @@ end))
 track(minimizeButton.MouseButton1Click:Connect(function()
     Window.Minimized = not Window.Minimized
     minimizeButton.Text = Window.Minimized and "+" or "-"
-    sidebar.Visible = not Window.Minimized
-    searchFrame.Visible = not Window.Minimized
-    pageHolder.Visible = not Window.Minimized
-    welcomeCard.Visible = not Window.Minimized
-    avatarCard.Visible = SETTINGS.AvatarPreviewEnabled and not Window.Minimized
-    contentBackdrop.Visible = not Window.Minimized
-    icicleLayer.Visible = not Window.Minimized
+    playToggleClick(not Window.Minimized)
+    local animatedContent = {sidebar, searchFrame, pageHolder, welcomeCard, avatarCard, contentBackdrop, icicleLayer}
     local targetSize = Window.Minimized and UDim2.fromOffset(850, 46) or UDim2.fromOffset(850, 560)
     Window:ClampToViewport(targetSize)
-    TweenService:Create(main, TweenInfo.new(0.20, Enum.EasingStyle.Quad), {Size = targetSize}):Play()
-    task.delay(0.22, function()
+    main.ClipsDescendants = true
+    if not Window.Minimized then
+        for _, object in ipairs(animatedContent) do
+            object.Visible = object ~= avatarCard or SETTINGS.AvatarPreviewEnabled
+        end
+    end
+    fluidTween(main, Window.Minimized and 0.22 or 0.30, {Size = targetSize}, Enum.EasingStyle.Quint)
+    fluidTween(uiScale, 0.24, {Scale = Window.Minimized and 0.985 or 1}, Enum.EasingStyle.Back)
+    task.delay(Window.Minimized and 0.23 or 0.31, function()
         if main.Parent then
+            if Window.Minimized then
+                for _, object in ipairs(animatedContent) do
+                    object.Visible = false
+                end
+            end
+            main.ClipsDescendants = false
             Window:ClampToViewport(targetSize)
         end
     end)
@@ -3230,27 +3814,61 @@ create("UIListLayout", {
 
 local homeCategories = {}
 local activeHomeCategory = nil
+local categoryTransitionToken = 0
 
 local function selectHomeCategory(name)
     local selected = homeCategories[name]
     if not selected then
         return false
     end
+    categoryTransitionToken += 1
+    local transitionToken = categoryTransitionToken
+    local previous = activeHomeCategory
+    activeHomeCategory = selected
     for _, category in pairs(homeCategories) do
         local active = category == selected
-        category.Frame.Visible = active
-        category.Button.BackgroundTransparency = active and 0.02 or 0.16
-        category.Button.BackgroundColor3 = active and COLORS.accentDark:Lerp(SNOW_WHITE, 0.48) or COLORS.surface2
-        category.Button.ImageTransparency = active and 0.02 or 0.14
-        category.Label.TextColor3 = active and SNOW_WHITE or Color3.fromRGB(232, 246, 253)
-        category.Label.TextTransparency = active and 0 or 0.08
-        category.Stroke.Color = active and COLORS.accentDark or COLORS.line
-        category.Stroke.Thickness = active and 2 or 1
-        category.Stroke.Transparency = active and 0.02 or 0.34
+        if active then
+            category.Frame.Visible = true
+            if category ~= previous then
+                category.Frame.Position = UDim2.fromOffset(12, 112)
+                category.Frame.GroupTransparency = 1
+                fluidTween(category.Frame, 0.27, {
+                    Position = UDim2.fromOffset(0, 104),
+                    GroupTransparency = 0,
+                }, Enum.EasingStyle.Quint)
+            else
+                category.Frame.Position = UDim2.fromOffset(0, 104)
+                category.Frame.GroupTransparency = 0
+            end
+        elseif category.Frame.Visible then
+            fluidTween(category.Frame, 0.16, {
+                Position = UDim2.fromOffset(-10, 100),
+                GroupTransparency = 1,
+            }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+            task.delay(0.17, function()
+                if transitionToken == categoryTransitionToken and activeHomeCategory ~= category and category.Frame.Parent then
+                    category.Frame.Visible = false
+                    category.Frame.Position = UDim2.fromOffset(0, 104)
+                end
+            end)
+        end
+        fluidTween(category.Button, 0.19, {
+            BackgroundTransparency = active and 0.02 or 0.16,
+            BackgroundColor3 = active and COLORS.accentDark:Lerp(SNOW_WHITE, 0.48) or COLORS.surface2,
+            ImageTransparency = active and 0.02 or 0.14,
+        })
+        fluidTween(category.Label, 0.18, {
+            TextColor3 = active and SNOW_WHITE or Color3.fromRGB(232, 246, 253),
+            TextTransparency = active and 0 or 0.08,
+        })
+        fluidTween(category.Stroke, 0.18, {
+            Color = active and COLORS.accentDark or COLORS.line,
+            Thickness = active and 2 or 1,
+            Transparency = active and 0.02 or 0.34,
+        })
         category.Accent.Visible = active
         category.SelectedGlow.Visible = active
     end
-    activeHomeCategory = selected
     HomePage.SearchItems = selected.SearchItems
     searchBox.Text = ""
     HomePage.Frame:SetAttribute("ActiveCategory", name)
@@ -3335,26 +3953,30 @@ local function addHomeCategory(name, order, assetId)
 
     track(button.MouseEnter:Connect(function()
         if activeHomeCategory ~= homeCategories[name] then
-            TweenService:Create(button, TweenInfo.new(0.14), {
+            fluidTween(button, 0.16, {
                 ImageTransparency = 0.04,
                 BackgroundTransparency = 0.08,
-            }):Play()
+            })
         end
     end))
     track(button.MouseLeave:Connect(function()
         if activeHomeCategory ~= homeCategories[name] then
-            TweenService:Create(button, TweenInfo.new(0.14), {
+            fluidTween(button, 0.18, {
                 ImageTransparency = 0.14,
                 BackgroundTransparency = 0.16,
-            }):Play()
+            })
         end
     end))
 
-    local frame = create("Frame", {
+    attachFluidScale(button, button, 1.018, 0.965)
+    attachPressRipple(button, button)
+
+    local frame = create("CanvasGroup", {
         Name = name .. "Category",
         Position = UDim2.fromOffset(0, 104),
         Size = UDim2.new(1, 0, 1, -104),
         BackgroundTransparency = 1,
+        GroupTransparency = 1,
         BorderSizePixel = 0,
         Visible = false,
     }, HomePage.Frame)
@@ -8280,6 +8902,30 @@ local SettingsPage = Window:AddPage("Settings")
 local ProfilesSection = SettingsPage:AddSection("Saved Profiles", "Left")
 local AutoLoadSection = SettingsPage:AddSection("Auto Load", "Right")
 local AppearanceSection = SettingsPage:AddSection("Frozen Appearance", "Right")
+local CommunitySection = SettingsPage:AddSection("Access & Community", "Left")
+
+CommunitySection:AddLabel("Discord provides the current key, supported-game list, updates, feedback, and suggestions.")
+CommunitySection:AddButton({
+    Name = "Copy Codex Hub Discord",
+    Description = SETTINGS.DiscordInviteURL,
+    Persist = false,
+    Callback = function()
+        if copyText(SETTINGS.DiscordInviteURL) then
+            Window:Notify("Discord", "Invite copied to your clipboard.", 3)
+        else
+            Window:Notify("Discord", "Clipboard access is unavailable. Open " .. SETTINGS.Discord, 4)
+        end
+    end,
+})
+CommunitySection:AddButton({
+    Name = "Forget Remembered Key",
+    Description = "Requires the Discord key again the next time the hub launches",
+    Persist = false,
+    Callback = function()
+        Window:ForgetKeyAccess()
+        Window:Notify("Access", "Remembered access was cleared for the next launch.", 3)
+    end,
+})
 
 local frozenPresets = {
     ["Snowstorm White"] = Color3.fromRGB(218, 242, 252),
@@ -8482,7 +9128,8 @@ else
 end
 
 Window:SelectPage("Home")
-Window:PlayIntro()
-
 -- Optional global reference for adding controls later from the same environment.
 _G.CodexHubTemplate = Window
+Window:RequestKeyAccess(function()
+    Window:PlayIntro()
+end)
