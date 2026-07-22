@@ -8913,14 +8913,16 @@ local function buildAnimeExpeditionsFeatures()
         return
     end
 
-    local built, buildError = pcall(moduleOrError, {
-        Window = Window,
-        CreateCategoryHomePage = createCategoryHomePage,
-        CategoryDecals = CATEGORY_DECALS,
-        Colors = COLORS,
-        Track = track,
-        Gui = gui,
-    })
+    local built, buildError = xpcall(function()
+        moduleOrError({
+            Window = Window,
+            CreateCategoryHomePage = createCategoryHomePage,
+            CategoryDecals = CATEGORY_DECALS,
+            Colors = COLORS,
+            Track = track,
+            Gui = gui,
+        })
+    end, debug.traceback)
     if not built then
         warn("[Codex Hub] Anime Expeditions controls failed: " .. tostring(buildError))
         pcall(function()
