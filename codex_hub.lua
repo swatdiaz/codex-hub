@@ -63,6 +63,7 @@ local CATEGORY_DECALS = {
     Visuals = 5676602141,
     Shooting = 14446878271,
     Player = 14442807051,
+    Dribble = 133800751776369,
 }
 
 -- Add each new supported experience here. Universe matching keeps support active
@@ -7000,15 +7001,18 @@ local HomePage, addHomeCategory, selectHomeCategory = createCategoryHomePage()
 
 local ShootingPage = addHomeCategory("Shooting", 1, CATEGORY_DECALS.Shooting)
 local PlayerPage = addHomeCategory("Player", 2, CATEGORY_DECALS.Player)
+local DribblePage = addHomeCategory("Dribble", 3, CATEGORY_DECALS.Dribble)
 
 local AutoShotSection = ShootingPage:AddSection("Perfect Release", "Left")
 local MeterSection = ShootingPage:AddSection("Shot Meter", "Right")
 local ShotStatusSection = ShootingPage:AddSection("Live Shot Status", "Right")
 local DefenseSection = PlayerPage:AddSection("1v1 Defense Assist", "Left")
 local PlayerUtilitySection = PlayerPage:AddSection("Player Utility", "Left")
-local OffenseSection = PlayerPage:AddSection("1v1 Offense Assist", "Right")
+local ScoringSection = PlayerPage:AddSection("Scoring Assist", "Right")
 local CameraSection = PlayerPage:AddSection("Camera", "Right")
 local PlayerStatusSection = PlayerPage:AddSection("Live Player Status", "Right")
+local DribbleSection = DribblePage:AddSection("Dribble Automation", "Left")
+local DribbleStatusSection = DribblePage:AddSection("Live Dribble Status", "Right")
 
 selectHomeCategory("Shooting")
 
@@ -7054,7 +7058,11 @@ local playerBallLabel = PlayerStatusSection:AddLabel("Basketball: Reading...")
 local playerModeLabel = PlayerStatusSection:AddLabel("Place: " .. tostring(game.PlaceId))
 local antiAfkStatusLabel = PlayerUtilitySection:AddLabel("Anti-AFK: Disabled")
 local defenseStatusLabel = DefenseSection:AddLabel("Defense: All assists disabled")
-local offenseStatusLabel = OffenseSection:AddLabel("Offense: All assists disabled")
+local scoringStatusLabel = ScoringSection:AddLabel("Scoring: Auto Dunk disabled")
+local dribbleStatusLabel = DribbleStatusSection:AddLabel("Dribble: Auto Combo disabled")
+DribbleStatusSection:AddLabel("Behind Back: current-hand key + X")
+DribbleStatusSection:AddLabel("Spin: double current-hand input | Between Legs: double X")
+DribbleStatusSection:AddLabel("Smart Mix rotates through every supported combo automatically.")
 
 local shootingGui = nil
 local shootingBar = nil
@@ -7436,8 +7444,8 @@ local function runBasketballAssists(now)
             if distance > 5 and distance <= dunkDistance and root.AssemblyLinearVelocity.Magnitude > 3 then
                 basketballState.LastDunk = now
                 pulseBasketballKey(Enum.KeyCode.Space, 0.05)
-                offenseStatusLabel.Text = string.format("Offense: Dunk assist triggered at %.1f studs", distance)
-                offenseStatusLabel.TextColor3 = COLORS.success
+                scoringStatusLabel.Text = string.format("Scoring: Dunk assist triggered at %.1f studs", distance)
+                scoringStatusLabel.TextColor3 = COLORS.success
             end
         end
     end
@@ -7449,8 +7457,8 @@ local function runBasketballAssists(now)
         if not meter or not meter.Visible then
             basketballState.LastCombo = now
             runDribbleSequence(basketballState.ComboStyle)
-            offenseStatusLabel.Text = "Offense: " .. basketballState.ComboStyle .. " combo used near " .. nearestOpponent.Name
-            offenseStatusLabel.TextColor3 = COLORS.success
+            dribbleStatusLabel.Text = "Dribble: " .. basketballState.ComboStyle .. " used near " .. nearestOpponent.Name
+            dribbleStatusLabel.TextColor3 = COLORS.success
         end
     end
 
@@ -7672,31 +7680,31 @@ DefenseSection:AddSlider({
     end,
 })
 
-local autoDunkControl = OffenseSection:AddToggle({
+local autoDunkControl = ScoringSection:AddToggle({
     Name = "Auto Dunk Assist",
     Description = "Triggers Space only inside the game's live dunk distance while running at the rim",
     Default = false,
     Flag = "basketball_auto_dunk",
     Callback = function(value)
         basketballState.AutoDunk = value
-        offenseStatusLabel.Text = value and "Offense: Auto Dunk armed" or "Offense: Auto Dunk disabled"
-        offenseStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+        scoringStatusLabel.Text = value and "Scoring: Auto Dunk armed" or "Scoring: Auto Dunk disabled"
+        scoringStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
     end,
 })
 
-local autoComboControl = OffenseSection:AddToggle({
+local autoComboControl = DribbleSection:AddToggle({
     Name = "Auto Dribble Combo",
     Description = "Runs the selected legal combo when a defender closes the gap",
     Default = false,
     Flag = "basketball_auto_dribble_combo",
     Callback = function(value)
         basketballState.AutoCombo = value
-        offenseStatusLabel.Text = value and "Offense: Auto Combo armed" or "Offense: Auto Combo disabled"
-        offenseStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+        dribbleStatusLabel.Text = value and "Dribble: Auto Combo armed" or "Dribble: Auto Combo disabled"
+        dribbleStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
     end,
 })
 
-OffenseSection:AddDropdown({
+DribbleSection:AddDropdown({
     Name = "Dribble Combo Style",
     Options = {"Smart Mix", "Behind Back", "Spin", "Between Legs", "Stepback"},
     Default = "Smart Mix",
@@ -7706,7 +7714,7 @@ OffenseSection:AddDropdown({
     end,
 })
 
-OffenseSection:AddSlider({
+DribbleSection:AddSlider({
     Name = "Combo Trigger Distance",
     Min = 6,
     Max = 20,
@@ -7718,7 +7726,7 @@ OffenseSection:AddSlider({
     end,
 })
 
-OffenseSection:AddSlider({
+DribbleSection:AddSlider({
     Name = "Combo Interval",
     Min = 1,
     Max = 5,
@@ -7798,9 +7806,11 @@ PlayerUtilitySection:AddButton({
         autoComboControl:Set(true)
         courtVisionControl:Set(true)
         defenseStatusLabel.Text = "Defense: Competitive 1v1 preset active"
-        offenseStatusLabel.Text = "Offense: Competitive 1v1 preset active"
+        scoringStatusLabel.Text = "Scoring: Competitive 1v1 preset active"
+        dribbleStatusLabel.Text = "Dribble: Competitive 1v1 preset active"
         defenseStatusLabel.TextColor3 = COLORS.success
-        offenseStatusLabel.TextColor3 = COLORS.success
+        scoringStatusLabel.TextColor3 = COLORS.success
+        dribbleStatusLabel.TextColor3 = COLORS.success
         Window:Notify("Basketball", "Competitive 1v1 preset enabled", 3)
     end,
 })
@@ -7818,9 +7828,11 @@ PlayerUtilitySection:AddButton({
         autoComboControl:Set(false)
         setGuardHeld(false)
         defenseStatusLabel.Text = "Defense: All assists disabled"
-        offenseStatusLabel.Text = "Offense: All assists disabled"
+        scoringStatusLabel.Text = "Scoring: All assists disabled"
+        dribbleStatusLabel.Text = "Dribble: All assists disabled"
         defenseStatusLabel.TextColor3 = COLORS.muted
-        offenseStatusLabel.TextColor3 = COLORS.muted
+        scoringStatusLabel.TextColor3 = COLORS.muted
+        dribbleStatusLabel.TextColor3 = COLORS.muted
     end,
 })
 
@@ -7996,6 +8008,7 @@ gui:SetAttribute("BasketballShotMeterPath", "PlayerGui.Visual.Shooting")
 gui:SetAttribute("BasketballReleaseCalibration", basketballState.Calibration)
 gui:SetAttribute("BasketballShootingDecal", CATEGORY_DECALS.Shooting)
 gui:SetAttribute("BasketballPlayerDecal", CATEGORY_DECALS.Player)
+gui:SetAttribute("BasketballDribbleDecal", CATEGORY_DECALS.Dribble)
 end
 
 local function buildUnsupportedGameShell()
