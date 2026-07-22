@@ -1,4 +1,4 @@
--- Codex Hub UI Template
+-- VOR Hub UI Template
 -- Clean reusable interface framework only.
 
 local Players = game:GetService("Players")
@@ -16,7 +16,7 @@ local LocalPlayer = Players.LocalPlayer
 -- Change these values to customize the hub and welcome screen.
 local SETTINGS = {
     GuiName = "CodexHub",
-    Title = "Codex Hub",
+    Title = "VOR Hub",
     Discord = "discord.gg/MbergFzz56",
     DiscordInviteURL = "https://discord.gg/MbergFzz56",
     AccessKeyHash = 1961304013, -- FNV-1a hash of the current Discord key; the plain key is never shown in the hub.
@@ -122,7 +122,7 @@ local function loadCodexGameModule(fileName)
     local commitApi = "https://api.github.com/repos/" .. repository .. "/commits/main"
     local metadata = HttpService:JSONDecode(game:HttpGet(commitApi))
     local commit = metadata and metadata.sha
-    assert(type(commit) == "string" and #commit >= 7, "Could not resolve the current Codex Hub commit")
+    assert(type(commit) == "string" and #commit >= 7, "Could not resolve the current VOR Hub commit")
 
     local url = "https://raw.githubusercontent.com/" .. repository .. "/" .. commit .. "/" .. tostring(fileName)
     local source = game:HttpGet(url)
@@ -245,7 +245,7 @@ local function safeCallback(callback, ...)
 
     local ok, message = pcall(callback, ...)
     if not ok then
-        warn("[Codex Hub] Callback error: " .. tostring(message))
+        warn("[VOR Hub] Callback error: " .. tostring(message))
     end
 end
 
@@ -1285,7 +1285,7 @@ local statusHeader = create("Frame", {
     Active = true,
     ZIndex = 503,
 }, statusFrame)
-local statusTitle = makeLabel(statusHeader, utf8.char(0x2744) .. "  CODEX LIVE STATUS", UDim2.fromOffset(14, 0), UDim2.new(1, -62, 1, 0), COLORS.text, 15, Enum.Font.GothamBold)
+local statusTitle = makeLabel(statusHeader, utf8.char(0x2744) .. "  VOR LIVE STATUS", UDim2.fromOffset(14, 0), UDim2.new(1, -62, 1, 0), COLORS.text, 15, Enum.Font.GothamBold)
 statusTitle.TextColor3 = COLORS.sectionText
 statusTitle.TextStrokeColor3 = Color3.fromRGB(2, 10, 18)
 statusTitle.TextStrokeTransparency = 0.35
@@ -3108,7 +3108,7 @@ function Window:RequestKeyAccess(onGranted)
     addCorner(logo, 15)
     addStroke(logo, COLORS.accent, 1.5, 0.12)
 
-    local title = makeLabel(card, "CODEX HUB ACCESS", UDim2.fromOffset(0, 89), UDim2.new(1, 0, 0, 34), SNOW_WHITE, 25, Enum.Font.GothamBold)
+    local title = makeLabel(card, "VOR HUB ACCESS", UDim2.fromOffset(0, 89), UDim2.new(1, 0, 0, 34), SNOW_WHITE, 25, Enum.Font.GothamBold)
     title.TextXAlignment = Enum.TextXAlignment.Center
     title.TextStrokeColor3 = Color3.fromRGB(0, 8, 14)
     title.TextStrokeTransparency = 0.22
@@ -3151,7 +3151,7 @@ function Window:RequestKeyAccess(onGranted)
         PaddingRight = UDim.new(0, 14),
     }, keyBox)
 
-    local status = makeLabel(card, "The key is only posted inside the Codex Hub Discord.", UDim2.fromOffset(38, 226), UDim2.new(1, -76, 0, 24), COLORS.sectionMuted, 11, Enum.Font.GothamMedium)
+    local status = makeLabel(card, "The key is only posted inside the VOR Hub Discord.", UDim2.fromOffset(38, 226), UDim2.new(1, -76, 0, 24), COLORS.sectionMuted, 11, Enum.Font.GothamMedium)
     status.TextXAlignment = Enum.TextXAlignment.Center
     status.ZIndex = 904
 
@@ -3164,7 +3164,7 @@ function Window:RequestKeyAccess(onGranted)
         BackgroundTransparency = 0.04,
         BorderSizePixel = 0,
         Font = Enum.Font.GothamBold,
-        Text = "UNLOCK CODEX HUB",
+        Text = "UNLOCK VOR HUB",
         TextColor3 = SNOW_WHITE,
         TextSize = 13,
         ZIndex = 904,
@@ -3232,7 +3232,7 @@ function Window:RequestKeyAccess(onGranted)
         unlocking = true
         rememberAccess()
         gui:SetAttribute("AccessGateState", "Granted")
-        status.Text = "Access granted. Building Codex Hub..."
+        status.Text = "Access granted. Building VOR Hub..."
         status.TextColor3 = COLORS.sectionSuccess
         playToggleClick(true)
         fluidTween(gate, 0.30, {GroupTransparency = 1}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
@@ -4269,8 +4269,8 @@ local discordReminderInterval = 15 * 60
 local nextDiscordReminderAt = os.clock() + discordReminderInterval
 local function showDiscordReminder()
     Window:Notify(
-        "Codex Hub • Discord",
-        "See you enjoying our script? Join our Discord: Discord.gg/Codexhub",
+        "VOR Hub • Discord",
+        "Enjoying VOR Hub? Join our Discord: " .. SETTINGS.Discord,
         8
     )
     nextDiscordReminderAt = os.clock() + discordReminderInterval
@@ -8293,7 +8293,7 @@ MeterSection:AddSlider({
 
 MeterSection:AddButton({
     Name = "Rescan Shot Meter",
-    Description = "Reconnects Codex Hub after the game's UI reloads",
+        Description = "Reconnects VOR Hub after the game's UI reloads",
     Callback = function()
         playToggleClick(true)
         shootingGui = nil
@@ -8909,7 +8909,7 @@ local function buildAnimeExpeditionsFeatures()
         local errorSection = HomePage:AddSection("Anime Expeditions", "Left")
         errorSection:AddLabel("The game module could not be loaded.")
         errorSection:AddLabel(tostring(moduleOrError))
-        Window:Notify("Codex Hub", "Anime Expeditions module failed to load", 5)
+        Window:Notify("VOR Hub", "Anime Expeditions module failed to load", 5)
         return
     end
 
@@ -8924,11 +8924,11 @@ local function buildAnimeExpeditionsFeatures()
         })
     end, debug.traceback)
     if not built then
-        warn("[Codex Hub] Anime Expeditions controls failed: " .. tostring(buildError))
+        warn("[VOR Hub] Anime Expeditions controls failed: " .. tostring(buildError))
         pcall(function()
             gui:SetAttribute("AnimeExpeditionsBuildError", tostring(buildError))
         end)
-        Window:Notify("Codex Hub", "Anime Expeditions controls failed: " .. tostring(buildError), 7)
+        Window:Notify("VOR Hub", "Anime Expeditions controls failed: " .. tostring(buildError), 7)
     end
 end
 
@@ -8936,7 +8936,7 @@ local function buildUnsupportedGameShell()
     local HomePage = Window:AddPage("Home")
     local supportSection = HomePage:AddSection("Game Support", "Left")
     supportSection:AddLabel("This game is not supported yet.")
-    supportSection:AddLabel("Codex Hub loaded without any game-specific scripts.")
+    supportSection:AddLabel("VOR Hub loaded without any game-specific scripts.")
     supportSection:AddLabel(
         "PlaceId: " .. tostring(game.PlaceId) .. " | UniverseId: " .. tostring(game.GameId)
     )
@@ -8977,7 +8977,7 @@ local CommunitySection = SettingsPage:AddSection("Access & Community", "Left")
 
 CommunitySection:AddLabel("Discord provides the current key, supported-game list, updates, feedback, and suggestions.")
 CommunitySection:AddButton({
-    Name = "Copy Codex Hub Discord",
+    Name = "Copy VOR Hub Discord",
     Description = SETTINGS.DiscordInviteURL,
     Persist = false,
     Callback = function()

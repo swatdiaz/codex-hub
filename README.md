@@ -1,6 +1,6 @@
-# Codex Hub
+# VOR Hub
 
-GitHub-backed source for Codex Hub.
+GitHub-backed source for VOR Hub.
 
 ## Loader
 

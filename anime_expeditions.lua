@@ -1,4 +1,4 @@
--- Codex Hub - Anime Expeditions game module
+-- VOR Hub - Anime Expeditions game module
 -- Loaded only for UniverseId 7613921865. The module is intentionally adaptive:
 -- verified game endpoints are used directly while optional progression endpoints
 -- are discovered from the live Nodes table and fail closed when unavailable.
