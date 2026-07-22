@@ -64,6 +64,7 @@ local CATEGORY_DECALS = {
     Shooting = 14446878271,
     Player = 14442807051,
     Dribble = 133800751776369,
+    Exploits = 166575196,
 }
 
 -- Add each new supported experience here. Universe matching keeps support active
@@ -7002,6 +7003,7 @@ local HomePage, addHomeCategory, selectHomeCategory = createCategoryHomePage()
 local ShootingPage = addHomeCategory("Shooting", 1, CATEGORY_DECALS.Shooting)
 local PlayerPage = addHomeCategory("Player", 2, CATEGORY_DECALS.Player)
 local DribblePage = addHomeCategory("Dribble", 3, CATEGORY_DECALS.Dribble)
+local ExploitsPage = addHomeCategory("Exploits", 4, CATEGORY_DECALS.Exploits)
 
 local AutoShotSection = ShootingPage:AddSection("Perfect Release", "Left")
 local MeterSection = ShootingPage:AddSection("Shot Meter", "Right")
@@ -7013,6 +7015,10 @@ local CameraSection = PlayerPage:AddSection("Camera", "Right")
 local PlayerStatusSection = PlayerPage:AddSection("Live Player Status", "Right")
 local DribbleSection = DribblePage:AddSection("Dribble Automation", "Left")
 local DribbleStatusSection = DribblePage:AddSection("Live Dribble Status", "Right")
+local ExploitStealSection = ExploitsPage:AddSection("Extended Steal", "Left")
+local ExploitDefenseSection = ExploitsPage:AddSection("Unfair Defense", "Right")
+local ExploitMovementSection = ExploitsPage:AddSection("Ball & Aim Advantages", "Left")
+local ExploitStatusSection = ExploitsPage:AddSection("Exploit Status", "Right")
 
 selectHomeCategory("Shooting")
 
@@ -7026,17 +7032,25 @@ local basketballState = {
     AutoDunk = false,
     AutoCombo = false,
     CourtVision = false,
+    RemoteStealAura = false,
+    RemoteBlockAura = false,
+    LooseBallMagnet = false,
+    GoalAimLock = false,
     Calibration = 0.78,
     GuideEnabled = true,
     MeterScale = 1,
     GuardDistance = 22,
-    StealDistance = 7,
+    StealDistance = 14,
     BlockDistance = 20,
     BlockReaction = 0.10,
     ReboundDistance = 20,
     ComboDistance = 12,
     ComboInterval = 2.25,
     ComboStyle = "Smart Mix",
+    RemoteStealRange = 32,
+    RemoteStealInterval = 0.40,
+    RemoteBlockRange = 45,
+    MagnetRange = 35,
     ReleasedThisShot = false,
     ForceNextShot = false,
     LastMeterValue = 0,
@@ -7048,6 +7062,9 @@ local basketballState = {
     LastRebound = 0,
     LastDunk = 0,
     LastCombo = 0,
+    LastRemoteSteal = 0,
+    LastRemoteBlock = 0,
+    LastMagnet = 0,
 }
 
 local meterStatusLabel = ShotStatusSection:AddLabel("Meter: Waiting for a shot")
@@ -7063,6 +7080,9 @@ local dribbleStatusLabel = DribbleStatusSection:AddLabel("Dribble: Auto Combo di
 DribbleStatusSection:AddLabel("Behind Back: current-hand key + X")
 DribbleStatusSection:AddLabel("Spin: double current-hand input | Between Legs: double X")
 DribbleStatusSection:AddLabel("Smart Mix rotates through every supported combo automatically.")
+local exploitStatusLabel = ExploitStatusSection:AddLabel("Exploits: Disabled — every option is opt-in")
+ExploitStatusSection:AddLabel("Experimental controls may still be rejected by server-side distance validation.")
+ExploitStatusSection:AddLabel("Use the normal Player assists if a remote option is inconsistent.")
 
 local shootingGui = nil
 local shootingBar = nil
@@ -7074,6 +7094,15 @@ local opponentHighlight = nil
 local highlightedBall = nil
 local highlightedOpponent = nil
 local CollectionService = game:GetService("CollectionService")
+
+local controlServiceFolder = ReplicatedStorage:FindFirstChild("Packages")
+controlServiceFolder = controlServiceFolder and controlServiceFolder:FindFirstChild("Knit")
+controlServiceFolder = controlServiceFolder and controlServiceFolder:FindFirstChild("Services")
+controlServiceFolder = controlServiceFolder and controlServiceFolder:FindFirstChild("ControlService")
+local controlEvents = controlServiceFolder and controlServiceFolder:FindFirstChild("RE")
+local stealRemote = controlEvents and controlEvents:FindFirstChild("Steal")
+local blockRemote = controlEvents and controlEvents:FindFirstChild("Block")
+local shootMeterStartEvent = controlEvents and controlEvents:FindFirstChild("ShootMeterStart")
 
 local okSharedUtil, BasketballSharedUtil = pcall(function()
     return require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("SharedUtil"))
@@ -7400,11 +7429,38 @@ local function runBasketballAssists(now)
     end
 
     local hasBall = character:FindFirstChild("Basketball") ~= nil
-    local ballOpponent, ballOpponentDistance = getNearestOpponent(basketballState.GuardDistance, true)
+    local ballSearchDistance = math.max(
+        basketballState.GuardDistance,
+        basketballState.StealDistance,
+        basketballState.RemoteStealRange
+    )
+    local ballOpponent, ballOpponentDistance = getNearestOpponent(ballSearchDistance, true)
     local nearestOpponent, nearestOpponentDistance = getNearestOpponent(80, false)
     local guardSuspended = now < (basketballState.GuardResumeAt or 0)
+    local remoteStealFired = false
 
-    if basketballState.SmartSteal and not hasBall and ballOpponent
+    if basketballState.RemoteStealAura and not hasBall and ballOpponent
+        and ballOpponentDistance <= basketballState.RemoteStealRange
+        and now - basketballState.LastRemoteSteal >= basketballState.RemoteStealInterval then
+        basketballState.LastRemoteSteal = now
+        remoteStealFired = true
+        if stealRemote and stealRemote:IsA("RemoteEvent") then
+            pcall(function()
+                stealRemote:FireServer()
+            end)
+            exploitStatusLabel.Text = string.format(
+                "Exploits: Steal Aura fired at %s from %.1f studs",
+                ballOpponent.Name,
+                ballOpponentDistance
+            )
+            exploitStatusLabel.TextColor3 = COLORS.success
+        else
+            exploitStatusLabel.Text = "Exploits: Steal remote was not found"
+            exploitStatusLabel.TextColor3 = COLORS.warning
+        end
+    end
+
+    if not remoteStealFired and basketballState.SmartSteal and not hasBall and ballOpponent
         and ballOpponentDistance <= basketballState.StealDistance
         and now - basketballState.LastSteal >= 4.15 then
         basketballState.LastSteal = now
@@ -7432,6 +7488,30 @@ local function runBasketballAssists(now)
             pulseBasketballKey(Enum.KeyCode.Space, 0.05)
             defenseStatusLabel.Text = string.format("Defense: Rebound triggered (%.1f studs)", looseDistance)
             defenseStatusLabel.TextColor3 = COLORS.success
+        end
+    end
+
+    if basketballState.LooseBallMagnet and not hasBall
+        and now - basketballState.LastMagnet >= 0.30 then
+        local looseBall, looseDistance = getClosestCourtBall(true)
+        if looseBall and looseDistance > 3.5 and looseDistance <= basketballState.MagnetRange then
+            basketballState.LastMagnet = now
+            local targetPosition = looseBall.Position + Vector3.new(0, 2.65, 0)
+            local flatLook = Vector3.new(looseBall.Position.X, targetPosition.Y, looseBall.Position.Z)
+            root.CFrame = CFrame.lookAt(targetPosition, flatLook + root.CFrame.LookVector)
+            root.AssemblyLinearVelocity = Vector3.zero
+            exploitStatusLabel.Text = string.format("Exploits: Loose-ball magnet snapped %.1f studs", looseDistance)
+            exploitStatusLabel.TextColor3 = COLORS.success
+        end
+    end
+
+    if basketballState.GoalAimLock and hasBall then
+        local goal = getCurrentGoal()
+        if goal and goal:IsA("BasePart") then
+            local lookPosition = Vector3.new(goal.Position.X, root.Position.Y, goal.Position.Z)
+            if (lookPosition - root.Position).Magnitude > 0.1 then
+                root.CFrame = CFrame.lookAt(root.Position, lookPosition)
+            end
         end
     end
 
@@ -7608,12 +7688,12 @@ local smartStealControl = DefenseSection:AddToggle({
     end,
 })
 
-DefenseSection:AddSlider({
+local stealDistanceControl = DefenseSection:AddSlider({
     Name = "Steal Distance",
     Min = 4,
-    Max = 12,
+    Max = 40,
     Step = 0.5,
-    Default = 7,
+    Default = 14,
     Flag = "basketball_steal_distance",
     Callback = function(value)
         basketballState.StealDistance = value
@@ -7749,16 +7829,138 @@ local courtVisionControl = PlayerUtilitySection:AddToggle({
     end,
 })
 
-local controlServiceFolder = ReplicatedStorage:FindFirstChild("Packages")
-controlServiceFolder = controlServiceFolder and controlServiceFolder:FindFirstChild("Knit")
-controlServiceFolder = controlServiceFolder and controlServiceFolder:FindFirstChild("Services")
-controlServiceFolder = controlServiceFolder and controlServiceFolder:FindFirstChild("ControlService")
-local controlEvents = controlServiceFolder and controlServiceFolder:FindFirstChild("RE")
-local shootMeterStartEvent = controlEvents and controlEvents:FindFirstChild("ShootMeterStart")
+local remoteStealControl = ExploitStealSection:AddToggle({
+    Name = "Extended Remote Steal Aura",
+    Description = "Fires the Steal remote directly and bypasses the client's four-second action cooldown",
+    Default = false,
+    Flag = "basketball_exploit_remote_steal",
+    Callback = function(value)
+        basketballState.RemoteStealAura = value
+        exploitStatusLabel.Text = value and "Exploits: Extended Steal Aura armed" or "Exploits: Extended Steal Aura disabled"
+        exploitStatusLabel.TextColor3 = value and COLORS.warning or COLORS.muted
+    end,
+})
+
+ExploitStealSection:AddSlider({
+    Name = "Remote Steal Range",
+    Min = 10,
+    Max = 75,
+    Step = 1,
+    Default = 32,
+    Flag = "basketball_exploit_steal_range",
+    Callback = function(value)
+        basketballState.RemoteStealRange = value
+    end,
+})
+
+ExploitStealSection:AddSlider({
+    Name = "Remote Steal Interval",
+    Min = 0.10,
+    Max = 2,
+    Step = 0.05,
+    Default = 0.40,
+    Flag = "basketball_exploit_steal_interval",
+    Callback = function(value)
+        basketballState.RemoteStealInterval = value
+    end,
+})
+
+ExploitStealSection:AddButton({
+    Name = "Test One Remote Steal",
+    Description = "Sends one direct Steal request without enabling the repeating aura",
+    Callback = function()
+        playToggleClick(true)
+        if stealRemote and stealRemote:IsA("RemoteEvent") then
+            pcall(function()
+                stealRemote:FireServer()
+            end)
+            exploitStatusLabel.Text = "Exploits: One remote Steal request sent"
+            exploitStatusLabel.TextColor3 = COLORS.success
+        else
+            exploitStatusLabel.Text = "Exploits: Steal remote was not found"
+            exploitStatusLabel.TextColor3 = COLORS.warning
+        end
+    end,
+})
+
+local remoteBlockControl = ExploitDefenseSection:AddToggle({
+    Name = "Remote Block Aura",
+    Description = "Sends Block directly when a nearby opponent starts charging a shot",
+    Default = false,
+    Flag = "basketball_exploit_remote_block",
+    Callback = function(value)
+        basketballState.RemoteBlockAura = value
+        exploitStatusLabel.Text = value and "Exploits: Remote Block Aura listening" or "Exploits: Remote Block Aura disabled"
+        exploitStatusLabel.TextColor3 = value and COLORS.warning or COLORS.muted
+    end,
+})
+
+ExploitDefenseSection:AddSlider({
+    Name = "Remote Block Range",
+    Min = 10,
+    Max = 75,
+    Step = 1,
+    Default = 45,
+    Flag = "basketball_exploit_block_range",
+    Callback = function(value)
+        basketballState.RemoteBlockRange = value
+    end,
+})
+
+local ballMagnetControl = ExploitMovementSection:AddToggle({
+    Name = "Loose Ball Magnet",
+    Description = "Snaps your character onto a nearby loose ball before normal rebound logic runs",
+    Default = false,
+    Flag = "basketball_exploit_ball_magnet",
+    Callback = function(value)
+        basketballState.LooseBallMagnet = value
+        exploitStatusLabel.Text = value and "Exploits: Loose Ball Magnet armed" or "Exploits: Loose Ball Magnet disabled"
+        exploitStatusLabel.TextColor3 = value and COLORS.warning or COLORS.muted
+    end,
+})
+
+ExploitMovementSection:AddSlider({
+    Name = "Ball Magnet Range",
+    Min = 10,
+    Max = 80,
+    Step = 1,
+    Default = 35,
+    Flag = "basketball_exploit_magnet_range",
+    Callback = function(value)
+        basketballState.MagnetRange = value
+    end,
+})
+
+local goalAimControl = ExploitMovementSection:AddToggle({
+    Name = "Goal Aim Lock",
+    Description = "Forces your character to face the current scoring goal while holding the ball",
+    Default = false,
+    Flag = "basketball_exploit_goal_aim",
+    Callback = function(value)
+        basketballState.GoalAimLock = value
+        exploitStatusLabel.Text = value and "Exploits: Goal Aim Lock active" or "Exploits: Goal Aim Lock disabled"
+        exploitStatusLabel.TextColor3 = value and COLORS.warning or COLORS.muted
+    end,
+})
+
+ExploitStatusSection:AddButton({
+    Name = "Disable Every Exploit",
+    Description = "Turns off all direct-remote and movement advantage options",
+    Callback = function()
+        playToggleClick(false)
+        remoteStealControl:Set(false)
+        remoteBlockControl:Set(false)
+        ballMagnetControl:Set(false)
+        goalAimControl:Set(false)
+        exploitStatusLabel.Text = "Exploits: All experimental options disabled"
+        exploitStatusLabel.TextColor3 = COLORS.muted
+    end,
+})
 
 if shootMeterStartEvent and shootMeterStartEvent:IsA("RemoteEvent") then
     track(shootMeterStartEvent.OnClientEvent:Connect(function(shooter)
-        if not basketballState.SmartBlock or typeof(shooter) ~= "Instance" or not shooter:IsA("Player")
+        if not (basketballState.SmartBlock or basketballState.RemoteBlockAura)
+            or typeof(shooter) ~= "Instance" or not shooter:IsA("Player")
             or not isOpponent(shooter) then
             return
         end
@@ -7769,11 +7971,37 @@ if shootMeterStartEvent and shootMeterStartEvent:IsA("RemoteEvent") then
         if not localRoot or not shooterRoot or not character or character:FindFirstChild("Basketball") then
             return
         end
-        if (localRoot.Position - shooterRoot.Position).Magnitude > basketballState.BlockDistance then
+        local shooterDistance = (localRoot.Position - shooterRoot.Position).Magnitude
+        local allowedDistance = basketballState.RemoteBlockAura
+            and basketballState.RemoteBlockRange
+            or basketballState.BlockDistance
+        if shooterDistance > allowedDistance then
             return
         end
 
         local requestedAt = os.clock()
+        if basketballState.RemoteBlockAura then
+            if requestedAt - basketballState.LastRemoteBlock < 0.30 then
+                return
+            end
+            basketballState.LastRemoteBlock = requestedAt
+            if blockRemote and blockRemote:IsA("RemoteEvent") then
+                pcall(function()
+                    blockRemote:FireServer()
+                end)
+                exploitStatusLabel.Text = string.format(
+                    "Exploits: Remote Block fired at %s from %.1f studs",
+                    shooter.Name,
+                    shooterDistance
+                )
+                exploitStatusLabel.TextColor3 = COLORS.success
+            else
+                exploitStatusLabel.Text = "Exploits: Block remote was not found"
+                exploitStatusLabel.TextColor3 = COLORS.warning
+            end
+            return
+        end
+
         if requestedAt - basketballState.LastBlock < 3.05 then
             return
         end
@@ -7800,6 +8028,7 @@ PlayerUtilitySection:AddButton({
         autoGreenControl:Set(true)
         autoGuardControl:Set(true)
         smartStealControl:Set(true)
+        stealDistanceControl:Set(14)
         smartBlockControl:Set(true)
         autoReboundControl:Set(true)
         autoDunkControl:Set(true)
@@ -7985,6 +8214,10 @@ track(gui.Destroying:Connect(function()
     basketballState.AutoDunk = false
     basketballState.AutoCombo = false
     basketballState.CourtVision = false
+    basketballState.RemoteStealAura = false
+    basketballState.RemoteBlockAura = false
+    basketballState.LooseBallMagnet = false
+    basketballState.GoalAimLock = false
     setGuardHeld(false)
     sendShootKey(false)
     for keyCode in pairs(fallbackVirtualKeys) do
@@ -8009,6 +8242,7 @@ gui:SetAttribute("BasketballReleaseCalibration", basketballState.Calibration)
 gui:SetAttribute("BasketballShootingDecal", CATEGORY_DECALS.Shooting)
 gui:SetAttribute("BasketballPlayerDecal", CATEGORY_DECALS.Player)
 gui:SetAttribute("BasketballDribbleDecal", CATEGORY_DECALS.Dribble)
+gui:SetAttribute("BasketballExploitsDecal", CATEGORY_DECALS.Exploits)
 end
 
 local function buildUnsupportedGameShell()
