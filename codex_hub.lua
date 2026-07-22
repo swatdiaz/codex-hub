@@ -8922,7 +8922,10 @@ local function buildAnimeExpeditionsFeatures()
         Gui = gui,
     })
     if not built then
-        gui:SetAttribute("AnimeExpeditionsBuildError", tostring(buildError))
+        warn("[Codex Hub] Anime Expeditions controls failed: " .. tostring(buildError))
+        pcall(function()
+            gui:SetAttribute("AnimeExpeditionsBuildError", tostring(buildError))
+        end)
         Window:Notify("Codex Hub", "Anime Expeditions controls failed: " .. tostring(buildError), 7)
     end
 end

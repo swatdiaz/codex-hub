@@ -141,14 +141,7 @@ return function(context)
         if not instance then
             return nil
         end
-        local previousIdentity = type(getthreadidentity) == "function" and getthreadidentity() or nil
-        if type(setthreadidentity) == "function" then
-            pcall(setthreadidentity, 2)
-        end
         local ok, result = pcall(require, instance)
-        if previousIdentity and type(setthreadidentity) == "function" then
-            pcall(setthreadidentity, previousIdentity)
-        end
         if ok then
             return result
         end
