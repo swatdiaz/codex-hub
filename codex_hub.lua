@@ -7004,7 +7004,9 @@ local PlayerPage = addHomeCategory("Player", 2, CATEGORY_DECALS.Player)
 local AutoShotSection = ShootingPage:AddSection("Perfect Release", "Left")
 local MeterSection = ShootingPage:AddSection("Shot Meter", "Right")
 local ShotStatusSection = ShootingPage:AddSection("Live Shot Status", "Right")
+local DefenseSection = PlayerPage:AddSection("1v1 Defense Assist", "Left")
 local PlayerUtilitySection = PlayerPage:AddSection("Player Utility", "Left")
+local OffenseSection = PlayerPage:AddSection("1v1 Offense Assist", "Right")
 local CameraSection = PlayerPage:AddSection("Camera", "Right")
 local PlayerStatusSection = PlayerPage:AddSection("Live Player Status", "Right")
 
@@ -7013,14 +7015,35 @@ selectHomeCategory("Shooting")
 local basketballState = {
     AutoGreen = false,
     AntiAfk = false,
+    AutoGuard = false,
+    SmartSteal = false,
+    SmartBlock = false,
+    AutoRebound = false,
+    AutoDunk = false,
+    AutoCombo = false,
+    CourtVision = false,
     Calibration = 0.78,
     GuideEnabled = true,
     MeterScale = 1,
+    GuardDistance = 22,
+    StealDistance = 7,
+    BlockDistance = 20,
+    BlockReaction = 0.10,
+    ReboundDistance = 20,
+    ComboDistance = 12,
+    ComboInterval = 2.25,
+    ComboStyle = "Smart Mix",
     ReleasedThisShot = false,
     ForceNextShot = false,
     LastMeterValue = 0,
     WasMeterVisible = false,
     LastStatusUpdate = 0,
+    LastAssistUpdate = 0,
+    LastSteal = 0,
+    LastBlock = 0,
+    LastRebound = 0,
+    LastDunk = 0,
+    LastCombo = 0,
 }
 
 local meterStatusLabel = ShotStatusSection:AddLabel("Meter: Waiting for a shot")
@@ -7030,11 +7053,33 @@ local playerCourtLabel = PlayerStatusSection:AddLabel("Court: Reading...")
 local playerBallLabel = PlayerStatusSection:AddLabel("Basketball: Reading...")
 local playerModeLabel = PlayerStatusSection:AddLabel("Place: " .. tostring(game.PlaceId))
 local antiAfkStatusLabel = PlayerUtilitySection:AddLabel("Anti-AFK: Disabled")
+local defenseStatusLabel = DefenseSection:AddLabel("Defense: All assists disabled")
+local offenseStatusLabel = OffenseSection:AddLabel("Offense: All assists disabled")
 
 local shootingGui = nil
 local shootingBar = nil
 local releaseGuide = nil
 local meterScaleObject = nil
+local guardHeld = false
+local ballHighlight = nil
+local opponentHighlight = nil
+local highlightedBall = nil
+local highlightedOpponent = nil
+local CollectionService = game:GetService("CollectionService")
+
+local okSharedUtil, BasketballSharedUtil = pcall(function()
+    return require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("SharedUtil"))
+end)
+if not okSharedUtil then
+    BasketballSharedUtil = nil
+end
+
+local okBasketballModule, BasketballModule = pcall(function()
+    return require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Basketball"))
+end)
+if not okBasketballModule then
+    BasketballModule = nil
+end
 
 local okInput, VirtualInputManager = pcall(function()
     return game:GetService("VirtualInputManager")
@@ -7043,22 +7088,56 @@ if not okInput then
     VirtualInputManager = nil
 end
 
-local function sendShootKey(isDown)
+local fallbackVirtualKeys = {
+    [Enum.KeyCode.E] = 0x45,
+    [Enum.KeyCode.F] = 0x46,
+    [Enum.KeyCode.R] = 0x52,
+    [Enum.KeyCode.V] = 0x56,
+    [Enum.KeyCode.X] = 0x58,
+    [Enum.KeyCode.Z] = 0x5A,
+    [Enum.KeyCode.C] = 0x43,
+    [Enum.KeyCode.Space] = 0x20,
+}
+
+local function sendBasketballKey(keyCode, isDown)
     if VirtualInputManager then
         local ok = pcall(function()
-            VirtualInputManager:SendKeyEvent(isDown, Enum.KeyCode.E, false, game)
+            VirtualInputManager:SendKeyEvent(isDown, keyCode, false, game)
         end)
         if ok then
             return true
         end
     end
 
+    local virtualKey = fallbackVirtualKeys[keyCode]
+    if not virtualKey then
+        return false
+    end
     if isDown and type(keypress) == "function" then
-        return pcall(keypress, 0x45)
+        return pcall(keypress, virtualKey)
     elseif not isDown and type(keyrelease) == "function" then
-        return pcall(keyrelease, 0x45)
+        return pcall(keyrelease, virtualKey)
     end
     return false
+end
+
+local function sendShootKey(isDown)
+    return sendBasketballKey(Enum.KeyCode.E, isDown)
+end
+
+local keyPulseBusy = {}
+local function pulseBasketballKey(keyCode, holdTime)
+    if keyPulseBusy[keyCode] then
+        return false
+    end
+    keyPulseBusy[keyCode] = true
+    task.spawn(function()
+        sendBasketballKey(keyCode, true)
+        task.wait(holdTime or 0.045)
+        sendBasketballKey(keyCode, false)
+        keyPulseBusy[keyCode] = nil
+    end)
+    return true
 end
 
 local function updateReleaseGuide()
@@ -7112,6 +7191,272 @@ local function resolveShotMeter()
     end
     updateReleaseGuide()
     return shootingGui, shootingBar
+end
+
+local function getCharacterRoot(player)
+    local character = player and player.Character
+    return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+local function isSameCourt(player)
+    if not player or player == LocalPlayer then
+        return false
+    end
+    local localCourt = LocalPlayer:GetAttribute("Court")
+    local otherCourt = player:GetAttribute("Court")
+    return localCourt == nil or otherCourt == nil or localCourt == otherCourt
+end
+
+local function isOpponent(player)
+    if not isSameCourt(player) then
+        return false
+    end
+    local localTeam = LocalPlayer:GetAttribute("Team")
+    local otherTeam = player:GetAttribute("Team")
+    return localTeam == nil or otherTeam == nil or localTeam ~= otherTeam
+end
+
+local function getNearestOpponent(maxDistance, mustHaveBall)
+    local root = getCharacterRoot(LocalPlayer)
+    if not root then
+        return nil, math.huge
+    end
+
+    local nearest = nil
+    local nearestDistance = tonumber(maxDistance) or math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if isOpponent(player) then
+            local otherRoot = getCharacterRoot(player)
+            local hasBall = player.Character and player.Character:FindFirstChild("Basketball") ~= nil
+            if otherRoot and (not mustHaveBall or hasBall) then
+                local distance = (root.Position - otherRoot.Position).Magnitude
+                if distance <= nearestDistance then
+                    nearest = player
+                    nearestDistance = distance
+                end
+            end
+        end
+    end
+    return nearest, nearestDistance
+end
+
+local function getClosestCourtBall(looseOnly)
+    local root = getCharacterRoot(LocalPlayer)
+    if not root then
+        return nil, math.huge
+    end
+
+    local nearest = nil
+    local nearestDistance = math.huge
+    for _, ball in ipairs(CollectionService:GetTagged("Ball")) do
+        if ball:IsA("BasePart") and ball:IsDescendantOf(workspace) then
+            local loose = ball.Parent == workspace
+            if not looseOnly or loose then
+                local distance = (root.Position - ball.Position).Magnitude
+                if distance < nearestDistance then
+                    nearest = ball
+                    nearestDistance = distance
+                end
+            end
+        end
+    end
+    return nearest, nearestDistance
+end
+
+local function getCurrentGoal()
+    if not BasketballSharedUtil or not BasketballSharedUtil.Ball then
+        return nil
+    end
+    local ok, goal = pcall(function()
+        return BasketballSharedUtil.Ball:GetGoal(LocalPlayer)
+    end)
+    return ok and goal or nil
+end
+
+local function horizontalDistance(left, right)
+    local delta = left - right
+    return Vector3.new(delta.X, 0, delta.Z).Magnitude
+end
+
+local function setGuardHeld(value)
+    value = value == true
+    if guardHeld == value then
+        return
+    end
+    guardHeld = value
+    sendBasketballKey(Enum.KeyCode.F, value)
+end
+
+local function destroyHighlight(highlight)
+    if highlight and highlight.Parent then
+        highlight:Destroy()
+    end
+end
+
+local function updateCourtVision()
+    if not basketballState.CourtVision then
+        destroyHighlight(ballHighlight)
+        destroyHighlight(opponentHighlight)
+        ballHighlight = nil
+        opponentHighlight = nil
+        highlightedBall = nil
+        highlightedOpponent = nil
+        return
+    end
+
+    local ball = getClosestCourtBall(false)
+    local opponent = getNearestOpponent(80, false)
+    local opponentCharacter = opponent and opponent.Character
+
+    if ball ~= highlightedBall then
+        destroyHighlight(ballHighlight)
+        ballHighlight = nil
+        highlightedBall = ball
+        if ball then
+            ballHighlight = create("Highlight", {
+                Name = "CodexBasketballVision",
+                Adornee = ball,
+                FillColor = Color3.fromRGB(76, 224, 255),
+                FillTransparency = 0.32,
+                OutlineColor = SNOW_WHITE,
+                OutlineTransparency = 0.02,
+                DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+            }, ball)
+        end
+    end
+
+    if opponentCharacter ~= highlightedOpponent then
+        destroyHighlight(opponentHighlight)
+        opponentHighlight = nil
+        highlightedOpponent = opponentCharacter
+        if opponentCharacter then
+            opponentHighlight = create("Highlight", {
+                Name = "CodexOpponentVision",
+                Adornee = opponentCharacter,
+                FillColor = Color3.fromRGB(255, 92, 118),
+                FillTransparency = 0.68,
+                OutlineColor = Color3.fromRGB(255, 222, 230),
+                OutlineTransparency = 0.06,
+                DepthMode = Enum.HighlightDepthMode.AlwaysOnTop,
+            }, opponentCharacter)
+        end
+    end
+end
+
+local function getBallHand()
+    if not BasketballModule then
+        return "Right"
+    end
+    local ok, _, values = pcall(function()
+        local object, currentValues = BasketballModule:GetValues()
+        return object, currentValues
+    end)
+    return ok and values and values.Hand or "Right"
+end
+
+local function runDribbleSequence(style)
+    local handKey = getBallHand() == "Left" and Enum.KeyCode.Z or Enum.KeyCode.C
+    local sequence
+    if style == "Behind Back" then
+        sequence = {handKey, Enum.KeyCode.X}
+    elseif style == "Spin" then
+        sequence = {handKey, handKey}
+    elseif style == "Between Legs" then
+        sequence = {Enum.KeyCode.X, Enum.KeyCode.X}
+    elseif style == "Stepback" then
+        sequence = {Enum.KeyCode.X}
+    else
+        local choices = {"Behind Back", "Spin", "Between Legs", "Stepback"}
+        return runDribbleSequence(choices[math.random(1, #choices)])
+    end
+
+    task.spawn(function()
+        for _, keyCode in ipairs(sequence) do
+            pulseBasketballKey(keyCode, 0.035)
+            task.wait(0.085)
+        end
+    end)
+end
+
+local function runBasketballAssists(now)
+    if now - basketballState.LastAssistUpdate < 0.05 then
+        return
+    end
+    basketballState.LastAssistUpdate = now
+
+    local character = LocalPlayer.Character
+    local root = getCharacterRoot(LocalPlayer)
+    if not character or not root then
+        setGuardHeld(false)
+        return
+    end
+
+    local hasBall = character:FindFirstChild("Basketball") ~= nil
+    local ballOpponent, ballOpponentDistance = getNearestOpponent(basketballState.GuardDistance, true)
+    local nearestOpponent, nearestOpponentDistance = getNearestOpponent(80, false)
+    local guardSuspended = now < (basketballState.GuardResumeAt or 0)
+
+    if basketballState.SmartSteal and not hasBall and ballOpponent
+        and ballOpponentDistance <= basketballState.StealDistance
+        and now - basketballState.LastSteal >= 4.15 then
+        basketballState.LastSteal = now
+        basketballState.GuardResumeAt = now + 0.95
+        setGuardHeld(false)
+        pulseBasketballKey(Enum.KeyCode.R, 0.05)
+        defenseStatusLabel.Text = "Defense: Smart steal attempted on " .. ballOpponent.Name
+        defenseStatusLabel.TextColor3 = COLORS.success
+    elseif basketballState.AutoGuard and not hasBall and ballOpponent and not guardSuspended then
+        setGuardHeld(true)
+        defenseStatusLabel.Text = string.format("Defense: Guarding %s (%.1f studs)", ballOpponent.Name, ballOpponentDistance)
+        defenseStatusLabel.TextColor3 = COLORS.success
+    else
+        setGuardHeld(false)
+    end
+
+    if basketballState.AutoRebound and not hasBall
+        and now - basketballState.LastRebound >= 2.25
+        and now - basketballState.LastBlock >= 1.10 then
+        local looseBall, looseDistance = getClosestCourtBall(true)
+        if looseBall and looseBall.Position.Y > 3 and looseDistance <= basketballState.ReboundDistance then
+            basketballState.LastRebound = now
+            basketballState.GuardResumeAt = now + 1
+            setGuardHeld(false)
+            pulseBasketballKey(Enum.KeyCode.Space, 0.05)
+            defenseStatusLabel.Text = string.format("Defense: Rebound triggered (%.1f studs)", looseDistance)
+            defenseStatusLabel.TextColor3 = COLORS.success
+        end
+    end
+
+    if basketballState.AutoDunk and hasBall and now - basketballState.LastDunk >= 4.25 then
+        local goal = getCurrentGoal()
+        if goal and goal:IsA("BasePart") then
+            local distance = horizontalDistance(root.Position, goal.Position)
+            local dunkDistanceValue = ReplicatedStorage:FindFirstChild("DunkDistance")
+            local dunkDistance = dunkDistanceValue and tonumber(dunkDistanceValue.Value) or 12.5
+            if distance > 5 and distance <= dunkDistance and root.AssemblyLinearVelocity.Magnitude > 3 then
+                basketballState.LastDunk = now
+                pulseBasketballKey(Enum.KeyCode.Space, 0.05)
+                offenseStatusLabel.Text = string.format("Offense: Dunk assist triggered at %.1f studs", distance)
+                offenseStatusLabel.TextColor3 = COLORS.success
+            end
+        end
+    end
+
+    if basketballState.AutoCombo and hasBall and nearestOpponent
+        and nearestOpponentDistance <= basketballState.ComboDistance
+        and now - basketballState.LastCombo >= basketballState.ComboInterval then
+        local meter = resolveShotMeter()
+        if not meter or not meter.Visible then
+            basketballState.LastCombo = now
+            runDribbleSequence(basketballState.ComboStyle)
+            offenseStatusLabel.Text = "Offense: " .. basketballState.ComboStyle .. " combo used near " .. nearestOpponent.Name
+            offenseStatusLabel.TextColor3 = COLORS.success
+        end
+    end
+
+    if now - basketballState.LastStatusUpdate < 0.06 then
+        updateCourtVision()
+    end
 end
 
 local autoGreenControl = AutoShotSection:AddToggle({
@@ -7213,6 +7558,269 @@ MeterSection:AddButton({
         local found = resolveShotMeter() ~= nil
         meterStatusLabel.Text = found and "Meter: Connected" or "Meter: PlayerGui.Visual.Shooting not found"
         meterStatusLabel.TextColor3 = found and COLORS.success or COLORS.warning
+    end,
+})
+
+local autoGuardControl = DefenseSection:AddToggle({
+    Name = "Auto Guard Ball Handler",
+    Description = "Holds the game's Guard action while the opposing ball handler is nearby",
+    Default = false,
+    Flag = "basketball_auto_guard",
+    Callback = function(value)
+        basketballState.AutoGuard = value
+        if not value then
+            setGuardHeld(false)
+        end
+        defenseStatusLabel.Text = value and "Defense: Auto Guard armed" or "Defense: Auto Guard disabled"
+        defenseStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+    end,
+})
+
+DefenseSection:AddSlider({
+    Name = "Guard Distance",
+    Min = 10,
+    Max = 25,
+    Step = 1,
+    Default = 22,
+    Flag = "basketball_guard_distance",
+    Callback = function(value)
+        basketballState.GuardDistance = value
+    end,
+})
+
+local smartStealControl = DefenseSection:AddToggle({
+    Name = "Smart Steal",
+    Description = "Drops Guard briefly and uses the normal steal action when the opponent is close",
+    Default = false,
+    Flag = "basketball_smart_steal",
+    Callback = function(value)
+        basketballState.SmartSteal = value
+        defenseStatusLabel.Text = value and "Defense: Smart Steal armed" or "Defense: Smart Steal disabled"
+        defenseStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+    end,
+})
+
+DefenseSection:AddSlider({
+    Name = "Steal Distance",
+    Min = 4,
+    Max = 12,
+    Step = 0.5,
+    Default = 7,
+    Flag = "basketball_steal_distance",
+    Callback = function(value)
+        basketballState.StealDistance = value
+    end,
+})
+
+local smartBlockControl = DefenseSection:AddToggle({
+    Name = "Smart Block",
+    Description = "Reacts to the opponent's real ShootMeterStart event and contests with Space",
+    Default = false,
+    Flag = "basketball_smart_block",
+    Callback = function(value)
+        basketballState.SmartBlock = value
+        defenseStatusLabel.Text = value and "Defense: Smart Block listening for opponent shots" or "Defense: Smart Block disabled"
+        defenseStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+    end,
+})
+
+DefenseSection:AddSlider({
+    Name = "Block Reaction Delay",
+    Min = 0,
+    Max = 0.35,
+    Step = 0.01,
+    Default = 0.10,
+    Flag = "basketball_block_reaction",
+    Callback = function(value)
+        basketballState.BlockReaction = value
+    end,
+})
+
+DefenseSection:AddSlider({
+    Name = "Block Distance",
+    Min = 8,
+    Max = 25,
+    Step = 1,
+    Default = 20,
+    Flag = "basketball_block_distance",
+    Callback = function(value)
+        basketballState.BlockDistance = value
+    end,
+})
+
+local autoReboundControl = DefenseSection:AddToggle({
+    Name = "Auto Rebound",
+    Description = "Uses the game's normal rebound jump when a loose ball rises nearby",
+    Default = false,
+    Flag = "basketball_auto_rebound",
+    Callback = function(value)
+        basketballState.AutoRebound = value
+        defenseStatusLabel.Text = value and "Defense: Auto Rebound armed" or "Defense: Auto Rebound disabled"
+        defenseStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+    end,
+})
+
+DefenseSection:AddSlider({
+    Name = "Rebound Distance",
+    Min = 8,
+    Max = 25,
+    Step = 1,
+    Default = 20,
+    Flag = "basketball_rebound_distance",
+    Callback = function(value)
+        basketballState.ReboundDistance = value
+    end,
+})
+
+local autoDunkControl = OffenseSection:AddToggle({
+    Name = "Auto Dunk Assist",
+    Description = "Triggers Space only inside the game's live dunk distance while running at the rim",
+    Default = false,
+    Flag = "basketball_auto_dunk",
+    Callback = function(value)
+        basketballState.AutoDunk = value
+        offenseStatusLabel.Text = value and "Offense: Auto Dunk armed" or "Offense: Auto Dunk disabled"
+        offenseStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+    end,
+})
+
+local autoComboControl = OffenseSection:AddToggle({
+    Name = "Auto Dribble Combo",
+    Description = "Runs the selected legal combo when a defender closes the gap",
+    Default = false,
+    Flag = "basketball_auto_dribble_combo",
+    Callback = function(value)
+        basketballState.AutoCombo = value
+        offenseStatusLabel.Text = value and "Offense: Auto Combo armed" or "Offense: Auto Combo disabled"
+        offenseStatusLabel.TextColor3 = value and COLORS.success or COLORS.muted
+    end,
+})
+
+OffenseSection:AddDropdown({
+    Name = "Dribble Combo Style",
+    Options = {"Smart Mix", "Behind Back", "Spin", "Between Legs", "Stepback"},
+    Default = "Smart Mix",
+    Flag = "basketball_dribble_combo_style",
+    Callback = function(value)
+        basketballState.ComboStyle = value or "Smart Mix"
+    end,
+})
+
+OffenseSection:AddSlider({
+    Name = "Combo Trigger Distance",
+    Min = 6,
+    Max = 20,
+    Step = 1,
+    Default = 12,
+    Flag = "basketball_combo_distance",
+    Callback = function(value)
+        basketballState.ComboDistance = value
+    end,
+})
+
+OffenseSection:AddSlider({
+    Name = "Combo Interval",
+    Min = 1,
+    Max = 5,
+    Step = 0.25,
+    Default = 2.25,
+    Flag = "basketball_combo_interval",
+    Callback = function(value)
+        basketballState.ComboInterval = value
+    end,
+})
+
+local courtVisionControl = PlayerUtilitySection:AddToggle({
+    Name = "Court Vision ESP",
+    Description = "Locally highlights the nearest ball and nearby opponent through visual clutter",
+    Default = false,
+    Flag = "basketball_court_vision",
+    Callback = function(value)
+        basketballState.CourtVision = value
+        updateCourtVision()
+    end,
+})
+
+local controlServiceFolder = ReplicatedStorage:FindFirstChild("Packages")
+controlServiceFolder = controlServiceFolder and controlServiceFolder:FindFirstChild("Knit")
+controlServiceFolder = controlServiceFolder and controlServiceFolder:FindFirstChild("Services")
+controlServiceFolder = controlServiceFolder and controlServiceFolder:FindFirstChild("ControlService")
+local controlEvents = controlServiceFolder and controlServiceFolder:FindFirstChild("RE")
+local shootMeterStartEvent = controlEvents and controlEvents:FindFirstChild("ShootMeterStart")
+
+if shootMeterStartEvent and shootMeterStartEvent:IsA("RemoteEvent") then
+    track(shootMeterStartEvent.OnClientEvent:Connect(function(shooter)
+        if not basketballState.SmartBlock or typeof(shooter) ~= "Instance" or not shooter:IsA("Player")
+            or not isOpponent(shooter) then
+            return
+        end
+
+        local localRoot = getCharacterRoot(LocalPlayer)
+        local shooterRoot = getCharacterRoot(shooter)
+        local character = LocalPlayer.Character
+        if not localRoot or not shooterRoot or not character or character:FindFirstChild("Basketball") then
+            return
+        end
+        if (localRoot.Position - shooterRoot.Position).Magnitude > basketballState.BlockDistance then
+            return
+        end
+
+        local requestedAt = os.clock()
+        if requestedAt - basketballState.LastBlock < 3.05 then
+            return
+        end
+        basketballState.LastBlock = requestedAt
+        basketballState.GuardResumeAt = requestedAt + 1.20
+        setGuardHeld(false)
+        task.delay(basketballState.BlockReaction, function()
+            if basketballState.SmartBlock and gui.Parent then
+                pulseBasketballKey(Enum.KeyCode.Space, 0.055)
+                if defenseStatusLabel.Parent then
+                    defenseStatusLabel.Text = "Defense: Contested " .. shooter.Name .. "'s shot"
+                    defenseStatusLabel.TextColor3 = COLORS.success
+                end
+            end
+        end)
+    end))
+end
+
+PlayerUtilitySection:AddButton({
+    Name = "Enable Competitive 1v1 Preset",
+    Description = "Turns on Auto Green, Guard, Steal, Block, Rebound, Dunk, Combo, and Court Vision",
+    Callback = function()
+        playToggleClick(true)
+        autoGreenControl:Set(true)
+        autoGuardControl:Set(true)
+        smartStealControl:Set(true)
+        smartBlockControl:Set(true)
+        autoReboundControl:Set(true)
+        autoDunkControl:Set(true)
+        autoComboControl:Set(true)
+        courtVisionControl:Set(true)
+        defenseStatusLabel.Text = "Defense: Competitive 1v1 preset active"
+        offenseStatusLabel.Text = "Offense: Competitive 1v1 preset active"
+        defenseStatusLabel.TextColor3 = COLORS.success
+        offenseStatusLabel.TextColor3 = COLORS.success
+        Window:Notify("Basketball", "Competitive 1v1 preset enabled", 3)
+    end,
+})
+
+PlayerUtilitySection:AddButton({
+    Name = "Disable All 1v1 Assists",
+    Description = "Stops every automatic basketball action while keeping visual/camera settings",
+    Callback = function()
+        playToggleClick(false)
+        autoGuardControl:Set(false)
+        smartStealControl:Set(false)
+        smartBlockControl:Set(false)
+        autoReboundControl:Set(false)
+        autoDunkControl:Set(false)
+        autoComboControl:Set(false)
+        setGuardHeld(false)
+        defenseStatusLabel.Text = "Defense: All assists disabled"
+        offenseStatusLabel.Text = "Offense: All assists disabled"
+        defenseStatusLabel.TextColor3 = COLORS.muted
+        offenseStatusLabel.TextColor3 = COLORS.muted
     end,
 })
 
@@ -7335,6 +7943,7 @@ track(RunService.RenderStepped:Connect(function()
     basketballState.WasMeterVisible = visible
 
     local now = os.clock()
+    runBasketballAssists(now)
     if now - basketballState.LastStatusUpdate >= 0.20 then
         basketballState.LastStatusUpdate = now
         meterStatusLabel.Text = visible
@@ -7357,7 +7966,20 @@ resolveShotMeter()
 track(gui.Destroying:Connect(function()
     basketballState.AutoGreen = false
     basketballState.ForceNextShot = false
+    basketballState.AutoGuard = false
+    basketballState.SmartSteal = false
+    basketballState.SmartBlock = false
+    basketballState.AutoRebound = false
+    basketballState.AutoDunk = false
+    basketballState.AutoCombo = false
+    basketballState.CourtVision = false
+    setGuardHeld(false)
     sendShootKey(false)
+    for keyCode in pairs(fallbackVirtualKeys) do
+        sendBasketballKey(keyCode, false)
+    end
+    destroyHighlight(ballHighlight)
+    destroyHighlight(opponentHighlight)
     if releaseGuide and releaseGuide.Parent then
         releaseGuide:Destroy()
     end
