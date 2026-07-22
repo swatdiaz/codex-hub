@@ -42,6 +42,7 @@ return function(context)
     local UnitProgressSection = UnitsPage:AddSection("Unit Progression", "Right")
     local RewardSection = ProgressPage:AddSection("Reward Automation", "Left")
     local ProgressStatusSection = ProgressPage:AddSection("Account Snapshot", "Right")
+    local LobbyStatusSection = ProgressPage:AddSection("Lobby Readiness", "Right")
 
     selectHomeCategory("AFK")
 
@@ -53,7 +54,7 @@ return function(context)
         AutoSkip = false,
         AutoReplay = false,
         AutoMacro = false,
-        AutoReconnect = true,
+        AutoReconnect = false,
         Recording = false,
         Playing = false,
         LoopMacro = false,
@@ -125,6 +126,12 @@ return function(context)
     local accountLabel = ProgressStatusSection:AddLabel("PlayerData: Waiting...")
     local currencyLabel = ProgressStatusSection:AddLabel("Currencies: Reading...")
     local gameInfoLabel = ProgressStatusSection:AddLabel("PlaceId " .. tostring(game.PlaceId))
+    local questReadinessLabel = LobbyStatusSection:AddLabel("Quests: Reading...")
+    local rewardReadinessLabel = LobbyStatusSection:AddLabel("Rewards: Reading...")
+    local afkChamberLabel = LobbyStatusSection:AddLabel("AFK Chamber: Reading...")
+    local worldReadinessLabel = LobbyStatusSection:AddLabel("Worlds: Reading...")
+    local eventReadinessLabel = LobbyStatusSection:AddLabel("Events: Reading...")
+    LobbyStatusSection:AddLabel("Read-only tracking never summons, rerolls, purchases, or claims by itself.")
 
     local function setStatus(message, success)
         state.Status = tostring(message)
@@ -261,28 +268,9 @@ return function(context)
 
     local function nodeNames(predicate)
         local names = {}
-        local seen = {}
-        local knownNodeNames = {
-            "CLIENT_CHANGE_SETTING", "GET_SETTING_VALUE", "BANNER_SUMMON", "CHANGE_AUTOSELL_SETTING",
-            "EQUIP_LOADOUT", "EQUIP_UNIT", "CHANGE_LOADOUT", "SET_LOADOUT",
-            "UPGRADE_UNIT", "LEVEL_UP_UNIT", "UNIT_UPGRADE", "EVOLVE_UNIT", "UNIT_EVOLVE",
-            "ASCEND_UNIT", "UNIT_ASCEND", "REROLL_POTENTIAL", "ROLL_POTENTIAL", "UNIT_POTENTIAL",
-            "REROLL_TRAIT", "ROLL_TRAIT", "UNIT_TRAIT", "REPLAY", "RESTART_GAME",
-            "REQUEST_REPLAY", "PLAY_AGAIN", "CLAIM_QUEST", "CLAIM_ALL_QUESTS",
-            "CLAIM_DAILY", "CLAIM_LOGIN_REWARD", "CLAIM_CALENDAR_REWARD",
-            "CLAIM_BATTLEPASS_REWARD", "CLAIM_ALL_BATTLEPASS_REWARDS", "CLAIM_EVENT_REWARD",
-            "CLAIM_INDEX_REWARD", "CLAIM_GUILD_REWARD",
-        }
-        for _, name in ipairs(knownNodeNames) do
-            local endpoint = getNode(name)
-            if endpoint and (not predicate or predicate(string.upper(name), endpoint)) then
-                seen[name] = true
-                table.insert(names, name)
-            end
-        end
         if type(Nodes) == "table" then
             for name, endpoint in pairs(Nodes) do
-                if type(name) == "string" and endpoint and not seen[name]
+                if type(name) == "string" and endpoint
                     and (not predicate or predicate(string.upper(name), endpoint)) then
                     table.insert(names, name)
                 end
@@ -854,14 +842,6 @@ return function(context)
                 return true
             end
         end
-        for _, name in ipairs({"REPLAY", "RESTART_GAME", "REQUEST_REPLAY", "PLAY_AGAIN"}) do
-            if getNode(name) then
-                local ok = callNode(name)
-                if ok then
-                    return true
-                end
-            end
-        end
         processVotes()
         return false
     end
@@ -954,12 +934,6 @@ return function(context)
     }
 
     local function findActionNode(action)
-        local candidates = actionPatterns[action] or {}
-        for _, name in ipairs(candidates) do
-            if getNode(name) then
-                return name
-            end
-        end
         local actionUpper = string.upper(action)
         local discovered = nodeNames(function(name)
             return name:find(actionUpper, 1, true) ~= nil and (name:find("UNIT", 1, true) ~= nil or action == "Equip")
@@ -1099,6 +1073,8 @@ return function(context)
             end
         end,
     })
+
+    RecorderSection:AddLabel("The recorder hook stays off until recording is explicitly enabled.")
 
     RecorderSection:AddButton({
         Name = "Save Recorded Macro",
@@ -1527,8 +1503,8 @@ return function(context)
 
     RecoverySection:AddToggle({
         Name = "Auto Reconnect On Error",
-        Description = "Rejoins only after Roblox reports a disconnect error",
-        Default = true,
+        Description = "Rejoins on ordinary network errors; server-issued kicks are never looped",
+        Default = false,
         Callback = function(enabled)
             state.AutoReconnect = enabled
         end,
@@ -1577,7 +1553,11 @@ return function(context)
     end))
 
     track(GuiService.ErrorMessageChanged:Connect(function(message)
-        if state.AutoReconnect and state.Alive and type(message) == "string" and message ~= "" then
+        local lowerMessage = string.lower(tostring(message or ""))
+        local serverKick = lowerMessage:find("kicked", 1, true)
+            or lowerMessage:find("moderation", 1, true)
+            or lowerMessage:find("connection lost", 1, true)
+        if state.AutoReconnect and state.Alive and type(message) == "string" and message ~= "" and not serverKick then
             setStatus("Roblox error detected; reconnecting...", false)
             task.delay(2, function()
                 if state.Alive and state.AutoReconnect then
@@ -1633,8 +1613,41 @@ return function(context)
     end
 
     connectSummonResults()
-    installSignalHook()
     refreshMacroLists()
+
+    local function tableCount(value)
+        local count = 0
+        if type(value) == "table" then
+            for _ in pairs(value) do
+                count += 1
+            end
+        end
+        return count
+    end
+
+    local function questReadiness(data)
+        local completed = 0
+        local claimable = 0
+        for _, category in pairs(type(data.QuestData) == "table" and data.QuestData or {}) do
+            if type(category) == "table" and category.Completed == true then
+                completed += 1
+                if category.Claimed ~= true then
+                    claimable += 1
+                end
+            end
+        end
+        return completed, claimable
+    end
+
+    local function activeEventCount()
+        local count = 0
+        for _, replica in pairs(replicas()) do
+            if replica.Token == "EventData" and replica.Data and replica.Data.Active == true then
+                count += 1
+            end
+        end
+        return count
+    end
 
     task.spawn(function()
         while state.Alive do
@@ -1718,6 +1731,31 @@ return function(context)
             accountLabel.Text = string.format("PlayerData: %s | GameState: %s", playerData() and "Ready" or "Waiting", gameStateReplica() and "Ready" or "Lobby")
             currencyLabel.Text = string.format("Currencies: Gem %d | Gold %d | Yen %d", getItemAmount("Gem"), getItemAmount("Gold"), getItemAmount("Yen"))
             gameInfoLabel.Text = string.format("%s | %s | %s | PlaceId %s", info.Map, info.Mode, info.Act, tostring(game.PlaceId))
+
+            local data = playerData() or {}
+            local completedQuests, claimableQuests = questReadiness(data)
+            local battlepass = type(data.BattlepassData) == "table" and data.BattlepassData.Season1 or nil
+            local afkFields = tableCount(data.AFKChamberData)
+            local projects = type(data.ExpeditionData) == "table" and data.ExpeditionData.Projects or nil
+            questReadinessLabel.Text = string.format("Quests: %d completed | %d ready to claim", completedQuests, claimableQuests)
+            rewardReadinessLabel.Text = string.format(
+                "Rewards: %d calendars | Battlepass Lv.%d",
+                tableCount(data.CalendarData),
+                tonumber(battlepass and battlepass.Level) or 0
+            )
+            afkChamberLabel.Text = afkFields > 0
+                and string.format("AFK Chamber: Active data | %d fields", afkFields)
+                or "AFK Chamber: No pending chamber session"
+            worldReadinessLabel.Text = string.format(
+                "Worlds: %d completed map records | %d units",
+                tableCount(data.CompletedMaps),
+                #units
+            )
+            eventReadinessLabel.Text = string.format(
+                "Events: %d active | Expedition projects %d",
+                activeEventCount(),
+                tableCount(projects)
+            )
             task.wait(0.50)
         end
     end)
