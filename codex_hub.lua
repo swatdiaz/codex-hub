@@ -31,7 +31,7 @@ local SETTINGS = {
     IntroSoundVolume = 0.32,
     IntroSoundPlaybackSpeed = 1,
     IntroPianoEnabled = true, -- Kept as the existing setting name so saved configs stay compatible.
-    IntroPianoSoundId = "rbxassetid://9045935780", -- Ice World: public Creator Store music for the frozen intro.
+    IntroPianoSoundId = "rbxassetid://9045935780", -- Ambient Creator Store music for the VOR intro.
     IntroPianoVolume = 0.52,
     IntroMusicDuration = 5, -- The music gets its own exact playback window.
     IntroPianoPlaybackSpeed = 1,
@@ -140,39 +140,40 @@ local PROFILE_FOLDER = CONFIG_ROOT .. "/Profiles"
 local AUTOLOAD_FILE = CONFIG_ROOT .. "/autoload.json"
 local ACCESS_FILE = "SolixHub/Configs/access.json"
 
-local SNOW_WHITE = Color3.fromRGB(246, 252, 255)
+-- VOR identity: blackened metal, deep violet energy, and restrained silver highlights.
+-- The legacy constant name remains so saved configurations and older helpers stay compatible.
+local SNOW_WHITE = Color3.fromRGB(232, 228, 242)
 
 local COLORS = {
-    shell = Color3.fromRGB(225, 239, 247),
-    sidebar = Color3.fromRGB(216, 233, 242),
-    surface = Color3.fromRGB(237, 246, 251),
-    surface2 = Color3.fromRGB(211, 230, 240),
-    row = Color3.fromRGB(154, 184, 200),
-    dropdown = Color3.fromRGB(222, 237, 245),
-    line = Color3.fromRGB(142, 188, 211),
-    text = Color3.fromRGB(18, 42, 56),
-    muted = Color3.fromRGB(52, 78, 94),
-    dim = Color3.fromRGB(78, 108, 125),
-    accent = Color3.fromRGB(218, 242, 252),
-    accentDark = Color3.fromRGB(102, 164, 194),
-    offTrack = Color3.fromRGB(132, 166, 184),
+    shell = Color3.fromRGB(10, 6, 18),
+    sidebar = Color3.fromRGB(8, 5, 15),
+    surface = Color3.fromRGB(18, 11, 31),
+    surface2 = Color3.fromRGB(27, 17, 45),
+    row = Color3.fromRGB(34, 22, 55),
+    dropdown = Color3.fromRGB(22, 14, 38),
+    line = Color3.fromRGB(112, 65, 181),
+    text = Color3.fromRGB(242, 238, 248),
+    muted = Color3.fromRGB(198, 187, 216),
+    dim = Color3.fromRGB(151, 133, 177),
+    accent = Color3.fromRGB(151, 70, 255),
+    accentDark = Color3.fromRGB(77, 31, 137),
+    offTrack = Color3.fromRGB(69, 58, 84),
     knob = SNOW_WHITE,
-    -- Deep emerald stays readable over the bright, translucent snow theme.
-    success = Color3.fromRGB(24, 118, 82),
-    error = Color3.fromRGB(239, 128, 137),
-    sectionRow = Color3.fromRGB(9, 25, 39),
-    sectionText = Color3.fromRGB(239, 250, 255),
-    sectionMuted = Color3.fromRGB(188, 218, 232),
-    sectionDim = Color3.fromRGB(142, 184, 205),
-    sectionSuccess = Color3.fromRGB(105, 255, 196),
-    sectionError = Color3.fromRGB(255, 151, 160),
-    toggleOn = Color3.fromRGB(0, 151, 255),
-    toggleOnBright = Color3.fromRGB(86, 235, 255),
-    toggleOnStroke = Color3.fromRGB(151, 246, 255),
+    success = Color3.fromRGB(105, 255, 191),
+    error = Color3.fromRGB(255, 100, 151),
+    sectionRow = Color3.fromRGB(9, 6, 17),
+    sectionText = Color3.fromRGB(245, 240, 252),
+    sectionMuted = Color3.fromRGB(199, 184, 222),
+    sectionDim = Color3.fromRGB(145, 123, 174),
+    sectionSuccess = Color3.fromRGB(119, 255, 199),
+    sectionError = Color3.fromRGB(255, 139, 177),
+    toggleOn = Color3.fromRGB(126, 45, 255),
+    toggleOnBright = Color3.fromRGB(201, 99, 255),
+    toggleOnStroke = Color3.fromRGB(225, 176, 255),
 }
 
 local UI_FONT = Enum.Font.GothamBold
-local hubTransparencyValue = 0.62
+local hubTransparencyValue = 0.24
 
 local function create(className, properties, parent)
     local object = Instance.new(className)
@@ -578,10 +579,10 @@ end
 create("UIGradient", {
     Rotation = 28,
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(250, 253, 255)),
-        ColorSequenceKeypoint.new(0.48, Color3.fromRGB(229, 241, 248)),
-        ColorSequenceKeypoint.new(0.72, Color3.fromRGB(211, 230, 240)),
-        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(190, 217, 231)),
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(5, 3, 11)),
+        ColorSequenceKeypoint.new(0.48, Color3.fromRGB(20, 9, 34)),
+        ColorSequenceKeypoint.new(0.72, Color3.fromRGB(34, 14, 54)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(8, 4, 16)),
     }),
 }, main)
 
@@ -593,24 +594,24 @@ do
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Image = SETTINGS.PanelBackgroundImageId,
-        ImageColor3 = Color3.fromRGB(255, 255, 255),
-        ImageTransparency = 0.06,
+        ImageColor3 = Color3.fromRGB(126, 72, 172),
+        ImageTransparency = 0.42,
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 1,
     }, main)
     addCorner(panelBackground, 11)
     create("UIGradient", {
-        Name = "PanelImageIceFade",
+        Name = "PanelImageVorFade",
         Rotation = 90,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(247, 252, 255)),
-            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(232, 246, 253)),
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(126, 71, 177)),
+            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(75, 34, 116)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(31, 13, 50)),
         }),
         Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0.00, 0.03),
-            NumberSequenceKeypoint.new(0.46, 0.08),
-            NumberSequenceKeypoint.new(1.00, 0.05),
+            NumberSequenceKeypoint.new(0.00, 0.16),
+            NumberSequenceKeypoint.new(0.46, 0.30),
+            NumberSequenceKeypoint.new(1.00, 0.18),
         }),
     }, panelBackground)
 end
@@ -656,7 +657,7 @@ do
             AnchorPoint = Vector2.new(0.5, 0),
             Position = UDim2.fromScale(0.5, 0),
             Size = UDim2.fromOffset(width, math.max(6, math.floor(height * 0.58))),
-            BackgroundColor3 = SNOW_WHITE,
+            BackgroundColor3 = COLORS.accent,
             BackgroundTransparency = 0.06,
             BorderSizePixel = 0,
             ZIndex = 82,
@@ -666,7 +667,7 @@ do
             Name = "FrozenAccentGradient",
             Rotation = 90,
             Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0.00, SNOW_WHITE),
+                ColorSequenceKeypoint.new(0.00, COLORS.toggleOnBright),
                 ColorSequenceKeypoint.new(0.58, COLORS.accent),
                 ColorSequenceKeypoint.new(1.00, COLORS.accentDark),
             }),
@@ -708,7 +709,7 @@ do
             AnchorPoint = Vector2.new(0.5, 0),
             Position = UDim2.new(0.5, -math.max(1, math.floor(width * 0.18)), 0, 2),
             Size = UDim2.fromOffset(math.max(1, math.floor(width * 0.18)), math.max(4, math.floor(height * 0.30))),
-            BackgroundColor3 = SNOW_WHITE,
+            BackgroundColor3 = COLORS.toggleOnBright,
             BackgroundTransparency = 0.22,
             BorderSizePixel = 0,
             ZIndex = 85,
@@ -734,7 +735,7 @@ local header = create("Frame", {
     Active = true,
     Size = UDim2.new(1, 0, 0, 46),
     BackgroundColor3 = COLORS.sidebar,
-    BackgroundTransparency = 0.68,
+    BackgroundTransparency = 0.30,
     BorderSizePixel = 0,
     ZIndex = 20,
 }, main)
@@ -742,9 +743,9 @@ addCorner(header, 12)
 create("UIGradient", {
     Rotation = 0,
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(252, 254, 255)),
-        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(229, 241, 248)),
-        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(207, 228, 239)),
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(14, 8, 25)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(38, 16, 61)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(14, 7, 27)),
     }),
 }, header)
 do
@@ -753,16 +754,16 @@ do
         Position = UDim2.new(0, 0, 1, -12),
         Size = UDim2.new(1, 0, 0, 12),
         BackgroundColor3 = COLORS.sidebar,
-        BackgroundTransparency = 0.68,
+        BackgroundTransparency = 0.30,
         BorderSizePixel = 0,
         ZIndex = 20,
     }, header)
     create("UIGradient", {
         Rotation = 0,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(252, 254, 255)),
-            ColorSequenceKeypoint.new(0.55, Color3.fromRGB(229, 241, 248)),
-            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(207, 228, 239)),
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(14, 8, 25)),
+            ColorSequenceKeypoint.new(0.55, Color3.fromRGB(38, 16, 61)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(14, 7, 27)),
         }),
     }, headerJoin)
 end
@@ -776,7 +777,7 @@ local brandLogo = create("Frame", {
     ZIndex = 21,
 }, header)
 
--- Asset-free frozen Codex knot: six interlocking ice bars arranged as a pinwheel.
+-- Asset-free VOR energy knot: six interlocking violet bars arranged as a pinwheel.
 for segmentIndex = 1, 6 do
     local angle = math.rad((segmentIndex - 1) * 60)
     local segment = create("Frame", {
@@ -797,7 +798,7 @@ for segmentIndex = 1, 6 do
         Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0.00, COLORS.accentDark),
             ColorSequenceKeypoint.new(0.52, COLORS.accent),
-            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(232, 245, 251)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(226, 201, 255)),
         }),
     }, segment)
 end
@@ -807,7 +808,7 @@ local knotCore = create("Frame", {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
     Size = UDim2.fromOffset(6, 6),
-    BackgroundColor3 = Color3.fromRGB(193, 220, 233),
+    BackgroundColor3 = Color3.fromRGB(213, 192, 235),
     BorderSizePixel = 0,
     Rotation = 45,
     ZIndex = 23,
@@ -877,24 +878,24 @@ local sidebar = create("Frame", {
     Position = UDim2.fromOffset(0, 46),
     Size = UDim2.new(0, 62, 1, -46),
     BackgroundColor3 = COLORS.sidebar,
-    BackgroundTransparency = 0.74,
+    BackgroundTransparency = 0.36,
     BorderSizePixel = 0,
 }, main)
 addCorner(sidebar, 12)
 create("UIGradient", {
     Rotation = 90,
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(247, 252, 255)),
-        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(220, 237, 245)),
-        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(198, 223, 235)),
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(17, 9, 29)),
+        ColorSequenceKeypoint.new(0.58, Color3.fromRGB(10, 6, 18)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(28, 12, 45)),
     }),
 }, sidebar)
 do
     local sidebarTopJoin = create("Frame", {
         Name = "SidebarTopJoin",
         Size = UDim2.new(1, 0, 0, 12),
-        BackgroundColor3 = Color3.fromRGB(247, 252, 255),
-        BackgroundTransparency = 0.74,
+        BackgroundColor3 = COLORS.sidebar,
+        BackgroundTransparency = 0.36,
         BorderSizePixel = 0,
     }, sidebar)
     local sidebarRightJoin = create("Frame", {
@@ -902,15 +903,15 @@ do
         Position = UDim2.new(1, -10, 0, 0),
         Size = UDim2.new(0, 10, 1, 0),
         BackgroundColor3 = COLORS.sidebar,
-        BackgroundTransparency = 0.74,
+        BackgroundTransparency = 0.36,
         BorderSizePixel = 0,
     }, sidebar)
     create("UIGradient", {
         Rotation = 90,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(247, 252, 255)),
-            ColorSequenceKeypoint.new(0.58, Color3.fromRGB(220, 237, 245)),
-            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(198, 223, 235)),
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(17, 9, 29)),
+            ColorSequenceKeypoint.new(0.58, Color3.fromRGB(10, 6, 18)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(28, 12, 45)),
         }),
     }, sidebarRightJoin)
     sidebarTopJoin.ZIndex = sidebarRightJoin.ZIndex
@@ -929,7 +930,7 @@ local contentBackdrop = create("Frame", {
     Position = UDim2.fromOffset(63, 46),
     Size = UDim2.new(1, -63, 1, -46),
     BackgroundColor3 = COLORS.surface,
-    BackgroundTransparency = 0.78,
+    BackgroundTransparency = 0.40,
     BorderSizePixel = 0,
     ZIndex = 1,
 }, main)
@@ -937,9 +938,9 @@ addCorner(contentBackdrop, 12)
 create("UIGradient", {
     Rotation = 90,
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(250, 253, 255)),
-        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(226, 240, 247)),
-        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(203, 226, 238)),
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(9, 5, 17)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(22, 10, 36)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(36, 14, 56)),
     }),
     Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0.00, 0.08),
@@ -951,9 +952,9 @@ do
         create("UIGradient", {
             Rotation = 90,
             Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0.00, Color3.fromRGB(250, 253, 255)),
-                ColorSequenceKeypoint.new(0.55, Color3.fromRGB(226, 240, 247)),
-                ColorSequenceKeypoint.new(1.00, Color3.fromRGB(203, 226, 238)),
+                ColorSequenceKeypoint.new(0.00, Color3.fromRGB(9, 5, 17)),
+                ColorSequenceKeypoint.new(0.55, Color3.fromRGB(22, 10, 36)),
+                ColorSequenceKeypoint.new(1.00, Color3.fromRGB(36, 14, 56)),
             }),
             Transparency = NumberSequence.new({
                 NumberSequenceKeypoint.new(0.00, 0.08),
@@ -965,7 +966,7 @@ do
         Name = "ContentTopJoin",
         Size = UDim2.new(1, 0, 0, 12),
         BackgroundColor3 = COLORS.surface,
-        BackgroundTransparency = 0.78,
+        BackgroundTransparency = 0.40,
         BorderSizePixel = 0,
         ZIndex = 1,
     }, contentBackdrop)
@@ -973,7 +974,7 @@ do
         Name = "ContentLeftJoin",
         Size = UDim2.new(0, 12, 1, 0),
         BackgroundColor3 = COLORS.surface,
-        BackgroundTransparency = 0.78,
+        BackgroundTransparency = 0.40,
         BorderSizePixel = 0,
         ZIndex = 1,
     }, contentBackdrop)
@@ -1005,7 +1006,7 @@ local avatarCard = create("Frame", {
     Position = UDim2.fromOffset(76, 61),
     Size = UDim2.fromOffset(76, 76),
     BackgroundColor3 = COLORS.surface,
-    BackgroundTransparency = 0.72,
+    BackgroundTransparency = 0.34,
     BorderSizePixel = 0,
     ClipsDescendants = false,
     Visible = SETTINGS.AvatarPreviewEnabled,
@@ -1016,9 +1017,9 @@ addStroke(avatarCard, COLORS.accentDark, 1, 0.48)
 create("UIGradient", {
     Rotation = 90,
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(253, 255, 255)),
-        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(224, 240, 248)),
-        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(198, 224, 237)),
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(40, 19, 64)),
+        ColorSequenceKeypoint.new(0.55, Color3.fromRGB(18, 10, 31)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(60, 24, 92)),
     }),
     Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0.00, 0.18),
@@ -1042,7 +1043,7 @@ create("UIGradient", {
     Rotation = 45,
     Color = ColorSequence.new(
         SNOW_WHITE,
-        Color3.fromRGB(133, 191, 217)
+        COLORS.accentDark
     ),
     Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0.00, 0.28),
@@ -1084,7 +1085,7 @@ local welcomeCard = create("Frame", {
     Position = UDim2.fromOffset(162, 67),
     Size = UDim2.new(1, -178, 0, 64),
     BackgroundColor3 = COLORS.surface,
-    BackgroundTransparency = 0.62,
+    BackgroundTransparency = 0.30,
     BorderSizePixel = 0,
     ZIndex = 5,
 }, main)
@@ -1093,9 +1094,9 @@ addStroke(welcomeCard, COLORS.line, 1, 0.10)
 create("UIGradient", {
     Rotation = 0,
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(253, 255, 255)),
-        ColorSequenceKeypoint.new(0.62, Color3.fromRGB(230, 242, 248)),
-        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(210, 231, 241)),
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(31, 16, 51)),
+        ColorSequenceKeypoint.new(0.62, Color3.fromRGB(18, 10, 31)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 21, 79)),
     }),
 }, welcomeCard)
 
@@ -1247,7 +1248,7 @@ local statusFrame = create("Frame", {
     AnchorPoint = Vector2.new(1, 0),
     Position = UDim2.new(1, -24, 0, 72),
     Size = UDim2.fromOffset(360, 236),
-    BackgroundColor3 = Color3.fromRGB(5, 17, 29),
+    BackgroundColor3 = Color3.fromRGB(7, 4, 14),
     BackgroundTransparency = 0.08,
     BorderSizePixel = 0,
     Active = true,
@@ -1261,8 +1262,8 @@ local statusBackground = create("ImageLabel", {
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     Image = SETTINGS.StatusBackgroundImageId,
-    ImageColor3 = Color3.fromRGB(222, 241, 250),
-    ImageTransparency = 0.08,
+    ImageColor3 = Color3.fromRGB(111, 57, 158),
+    ImageTransparency = 0.30,
     ScaleType = Enum.ScaleType.Crop,
     ZIndex = 500,
 }, statusFrame)
@@ -1270,8 +1271,8 @@ addCorner(statusBackground, 14)
 local statusShade = create("Frame", {
     Name = "StatusGlassShade",
     Size = UDim2.fromScale(1, 1),
-    BackgroundColor3 = Color3.fromRGB(3, 16, 28),
-    BackgroundTransparency = 0.38,
+    BackgroundColor3 = Color3.fromRGB(8, 4, 16),
+    BackgroundTransparency = 0.18,
     BorderSizePixel = 0,
     ZIndex = 501,
 }, statusFrame)
@@ -1285,9 +1286,9 @@ local statusHeader = create("Frame", {
     Active = true,
     ZIndex = 503,
 }, statusFrame)
-local statusTitle = makeLabel(statusHeader, utf8.char(0x2744) .. "  VOR LIVE STATUS", UDim2.fromOffset(14, 0), UDim2.new(1, -62, 1, 0), COLORS.text, 15, Enum.Font.GothamBold)
+local statusTitle = makeLabel(statusHeader, utf8.char(0x25C6) .. "  VOR LIVE STATUS", UDim2.fromOffset(14, 0), UDim2.new(1, -62, 1, 0), COLORS.text, 15, Enum.Font.GothamBold)
 statusTitle.TextColor3 = COLORS.sectionText
-statusTitle.TextStrokeColor3 = Color3.fromRGB(2, 10, 18)
+statusTitle.TextStrokeColor3 = Color3.fromRGB(3, 1, 8)
 statusTitle.TextStrokeTransparency = 0.35
 statusTitle.ZIndex = 504
 local statusMinimizeButton = create("TextButton", {
@@ -1311,8 +1312,8 @@ local statusBody = create("Frame", {
     Name = "Body",
     Position = UDim2.fromOffset(10, 44),
     Size = UDim2.new(1, -20, 1, -54),
-    BackgroundColor3 = Color3.fromRGB(5, 20, 34),
-    BackgroundTransparency = 0.50,
+    BackgroundColor3 = Color3.fromRGB(10, 6, 19),
+    BackgroundTransparency = 0.18,
     BorderSizePixel = 0,
     ClipsDescendants = true,
     ZIndex = 502,
@@ -1340,7 +1341,7 @@ for index, key in ipairs({"General", "AFK", "Special", "Multi", "Farm", "Weapon"
         index == 1 and Enum.Font.GothamBold or Enum.Font.GothamSemibold
     )
     row.TextTruncate = Enum.TextTruncate.AtEnd
-    row.TextStrokeColor3 = Color3.fromRGB(2, 10, 18)
+    row.TextStrokeColor3 = Color3.fromRGB(3, 1, 8)
     row.TextStrokeTransparency = 0.38
     row.ZIndex = 504
     statusWidgetLabels[key] = row
@@ -1348,9 +1349,10 @@ end
 
 local statusFlakes = {}
 local statusRandom = Random.new()
+local statusSymbols = {utf8.char(0x25C6), utf8.char(0x25C7), utf8.char(0x2726), utf8.char(0x2727)}
 for index = 1, 10 do
-    local flake = makeLabel(statusFrame, utf8.char(index % 3 == 0 and 0x2746 or 0x2744), UDim2.fromOffset(0, 0), UDim2.fromOffset(24, 24), SNOW_WHITE, statusRandom:NextInteger(13, 22), Enum.Font.GothamBold)
-    flake.Name = "StatusSnowflake" .. index
+    local flake = makeLabel(statusFrame, statusSymbols[((index - 1) % #statusSymbols) + 1], UDim2.fromOffset(0, 0), UDim2.fromOffset(24, 24), COLORS.toggleOnBright, statusRandom:NextInteger(13, 22), Enum.Font.GothamBold)
+    flake.Name = "StatusVorParticle" .. index
     flake.TextXAlignment = Enum.TextXAlignment.Center
     flake.TextTransparency = 0.18
     flake.TextStrokeColor3 = COLORS.accentDark
@@ -1593,31 +1595,33 @@ local function startSnowfall()
 
     local random = Random.new()
     local symbols = {
-        utf8.char(0x2744),
-        utf8.char(0x2745),
-        utf8.char(0x2746),
+        utf8.char(0x25C6),
+        utf8.char(0x25C7),
+        utf8.char(0x2726),
+        utf8.char(0x2727),
+        utf8.char(0x2756),
     }
     local count = math.clamp(math.floor(tonumber(SETTINGS.SnowflakeCount) or 52), 18, 64)
 
     for index = 1, count do
         local flake = create("TextLabel", {
-            Name = "Snowflake" .. tostring(index),
+            Name = "VorParticle" .. tostring(index),
             AnchorPoint = Vector2.new(0.5, 0.5),
             Size = UDim2.fromOffset(64, 64),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             Font = Enum.Font.Gotham,
             Text = symbols[random:NextInteger(1, #symbols)],
-            TextColor3 = SNOW_WHITE,
+            TextColor3 = COLORS.toggleOnBright,
             TextStrokeColor3 = COLORS.accentDark,
             TextStrokeTransparency = 0.34,
-            TextTransparency = random:NextNumber(0.01, 0.18),
-            TextSize = random:NextInteger(26, 54),
+            TextTransparency = random:NextNumber(0.08, 0.30),
+            TextSize = random:NextInteger(18, 42),
             Visible = false,
             ZIndex = 2,
         }, snowLayer)
         create("ImageLabel", {
-            Name = "FrozenGlow",
+            Name = "VorGlow",
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.fromScale(0.5, 0.5),
             Size = UDim2.fromScale(1.45, 1.45),
@@ -1625,7 +1629,7 @@ local function startSnowfall()
             BorderSizePixel = 0,
             Image = "rbxasset://textures/particles/sparkles_main.dds",
             ImageColor3 = COLORS.accent,
-            ImageTransparency = 0.40,
+            ImageTransparency = 0.34,
             ZIndex = 1,
         }, flake)
 
@@ -1644,8 +1648,8 @@ local function startSnowfall()
                 local endX = math.clamp(startX + random:NextNumber(-0.18, 0.18), 0.01, 0.99)
                 local duration = random:NextNumber(4.8, 9.2)
                 flake.Text = symbols[random:NextInteger(1, #symbols)]
-                flake.TextSize = random:NextInteger(26, 54)
-                flake.TextTransparency = random:NextNumber(0.01, 0.18)
+                flake.TextSize = random:NextInteger(18, 42)
+                flake.TextTransparency = random:NextNumber(0.08, 0.30)
                 flake.Position = UDim2.new(startX, 0, 0, -68)
                 flake.Rotation = random:NextInteger(-35, 35)
                 flake.Visible = true
@@ -1744,7 +1748,7 @@ local function applyFrozenAccent(newAccent)
 end
 
 local function applyHubTransparency(value)
-    hubTransparencyValue = math.clamp(tonumber(value) or 0.62, 0.10, 0.80)
+    hubTransparencyValue = math.clamp(tonumber(value) or 0.24, 0.10, 0.80)
     local offsets = {
         CodexHub = 0.00,
         Header = 0.06,
@@ -1808,20 +1812,20 @@ function Window:Notify(title, message, duration)
     local notification = create("Frame", {
         Size = UDim2.fromOffset(338, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundColor3 = Color3.fromRGB(13, 34, 48),
+        BackgroundColor3 = Color3.fromRGB(11, 6, 21),
         BackgroundTransparency = 0.08,
         BorderSizePixel = 0,
         ZIndex = 401,
     }, notificationHolder)
     addCorner(notification, 10)
-    addStroke(notification, Color3.fromRGB(151, 224, 255), 1.5, 0.12)
+    addStroke(notification, COLORS.toggleOnStroke, 1.5, 0.10)
     local frostGradient = create("UIGradient", {
         Rotation = 18,
         Offset = Vector2.new(-0.55, 0),
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(9, 29, 43)),
-            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(28, 72, 96)),
-            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(117, 191, 222)),
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(8, 4, 16)),
+            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(47, 18, 78)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(137, 55, 218)),
         }),
         Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0.00, 0.02),
@@ -1840,11 +1844,11 @@ function Window:Notify(title, message, duration)
         SortOrder = Enum.SortOrder.LayoutOrder,
     }, notification)
 
-    local titleLabel = makeLabel(notification, "❄  " .. tostring(title or SETTINGS.Title), nil, UDim2.new(1, 0, 0, 22), Color3.fromRGB(239, 251, 255), 15, Enum.Font.GothamBold)
+    local titleLabel = makeLabel(notification, utf8.char(0x25C6) .. "  " .. tostring(title or SETTINGS.Title), nil, UDim2.new(1, 0, 0, 22), COLORS.sectionText, 15, Enum.Font.GothamBold)
     titleLabel.LayoutOrder = 1
     titleLabel.ZIndex = 402
 
-    local messageLabel = makeLabel(notification, message or "", nil, UDim2.new(1, 0, 0, 0), Color3.fromRGB(190, 226, 242), 12, Enum.Font.GothamMedium)
+    local messageLabel = makeLabel(notification, message or "", nil, UDim2.new(1, 0, 0, 0), COLORS.sectionMuted, 12, Enum.Font.GothamMedium)
     messageLabel.LayoutOrder = 2
     messageLabel.AutomaticSize = Enum.AutomaticSize.Y
     messageLabel.TextWrapped = true
@@ -1853,7 +1857,7 @@ function Window:Notify(title, message, duration)
     local timerTrack = create("Frame", {
         LayoutOrder = 3,
         Size = UDim2.new(1, 0, 0, 3),
-        BackgroundColor3 = Color3.fromRGB(54, 92, 112),
+        BackgroundColor3 = Color3.fromRGB(59, 40, 76),
         BackgroundTransparency = 0.22,
         BorderSizePixel = 0,
         ZIndex = 402,
@@ -1861,7 +1865,7 @@ function Window:Notify(title, message, duration)
     addCorner(timerTrack, 2)
     local timerBar = create("Frame", {
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(177, 234, 255),
+        BackgroundColor3 = COLORS.toggleOnBright,
         BorderSizePixel = 0,
         ZIndex = 403,
     }, timerTrack)
@@ -1911,7 +1915,7 @@ local function makeControlRow(section, height)
         LayoutOrder = section.NextOrder,
         Size = UDim2.new(1, 0, 0, height),
         BackgroundColor3 = COLORS.sectionRow,
-        BackgroundTransparency = 0.70,
+        BackgroundTransparency = 0.34,
         BorderSizePixel = 0,
         ClipsDescendants = true,
     }, section.Body)
@@ -1923,10 +1927,10 @@ end
 local function attachControlMotion(button, row, hoverTransparency)
     attachFluidScale(button, row, 1.006, 0.994)
     track(button.MouseEnter:Connect(function()
-        fluidTween(row, 0.16, {BackgroundTransparency = hoverTransparency or 0.57})
+        fluidTween(row, 0.16, {BackgroundTransparency = hoverTransparency or 0.18})
     end))
     track(button.MouseLeave:Connect(function()
-        fluidTween(row, 0.20, {BackgroundTransparency = 0.70})
+        fluidTween(row, 0.20, {BackgroundTransparency = 0.34})
     end))
 end
 
@@ -1936,7 +1940,7 @@ function SectionMethods:AddLabel(text)
     local row = makeControlRow(self, 36)
     local label = makeLabel(row, text, UDim2.fromOffset(12, 0), UDim2.new(1, -24, 1, 0), COLORS.muted, 13, Enum.Font.GothamMedium)
     label.TextWrapped = true
-    label.TextStrokeColor3 = Color3.fromRGB(2, 10, 18)
+    label.TextStrokeColor3 = Color3.fromRGB(3, 1, 8)
     label.TextStrokeTransparency = 0.52
     registerSearchItem(self.Page, row, text)
     return label
@@ -2035,9 +2039,9 @@ function SectionMethods:AddToggle(options)
         BorderSizePixel = 0,
         Font = Enum.Font.GothamBold,
         Text = "ON",
-        TextColor3 = Color3.fromRGB(239, 253, 255),
+        TextColor3 = Color3.fromRGB(249, 240, 255),
         TextSize = 8,
-        TextStrokeColor3 = Color3.fromRGB(0, 69, 115),
+        TextStrokeColor3 = Color3.fromRGB(48, 10, 84),
         TextStrokeTransparency = 0.25,
         TextTransparency = 1,
         ZIndex = 3,
@@ -2052,7 +2056,7 @@ function SectionMethods:AddToggle(options)
         ZIndex = 4,
     }, trackFrame)
     addCorner(knob, 9)
-    local knobStroke = addStroke(knob, Color3.fromRGB(210, 246, 255), 1, 0.38)
+    local knobStroke = addStroke(knob, Color3.fromRGB(221, 198, 239), 1, 0.30)
 
     local button = create("TextButton", {
         AutoButtonColor = false,
@@ -2077,11 +2081,11 @@ function SectionMethods:AddToggle(options)
         })
         fluidTween(knob, 0.24, {
             Position = knobPosition,
-            BackgroundColor3 = state and Color3.fromRGB(250, 255, 255) or COLORS.knob,
+            BackgroundColor3 = state and Color3.fromRGB(250, 244, 255) or COLORS.knob,
             Size = state and UDim2.fromOffset(19, 19) or UDim2.fromOffset(18, 18),
         }, Enum.EasingStyle.Back)
         fluidTween(knobStroke, 0.18, {
-            Color = state and COLORS.toggleOnStroke or Color3.fromRGB(210, 246, 255),
+            Color = state and COLORS.toggleOnStroke or Color3.fromRGB(198, 177, 215),
             Transparency = state and 0.05 or 0.38,
         })
         fluidTween(onLabel, 0.14, {TextTransparency = state and 0 or 1})
@@ -2118,7 +2122,7 @@ function SectionMethods:AddDropdown(options)
         LayoutOrder = self.NextOrder,
         Size = UDim2.new(1, 0, 0, 50),
         BackgroundColor3 = COLORS.sectionRow,
-        BackgroundTransparency = 0.70,
+        BackgroundTransparency = 0.34,
         BorderSizePixel = 0,
         ClipsDescendants = true,
     }, self.Body)
@@ -2153,7 +2157,7 @@ function SectionMethods:AddDropdown(options)
         LayoutOrder = 2,
         Visible = false,
         Size = UDim2.new(1, 0, 0, 0),
-        BackgroundColor3 = Color3.fromRGB(7, 20, 33),
+        BackgroundColor3 = Color3.fromRGB(12, 7, 22),
         BackgroundTransparency = 0.22,
         BorderSizePixel = 0,
         ClipsDescendants = true,
@@ -2185,14 +2189,14 @@ function SectionMethods:AddDropdown(options)
             fluidTween(optionHolder, 0.22, {Size = UDim2.new(1, 0, 0, optionsHeight)})
             fluidTween(row, 0.22, {
                 Size = UDim2.new(1, 0, 0, 50 + optionsHeight),
-                BackgroundTransparency = 0.54,
+                BackgroundTransparency = 0.18,
             })
             fluidTween(arrow, 0.22, {Rotation = 180}, Enum.EasingStyle.Back)
         else
             fluidTween(optionHolder, 0.18, {Size = UDim2.new(1, 0, 0, 0)}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
             fluidTween(row, 0.20, {
                 Size = UDim2.new(1, 0, 0, 50),
-                BackgroundTransparency = 0.70,
+                BackgroundTransparency = 0.34,
             })
             fluidTween(arrow, 0.18, {Rotation = 0})
             task.delay(0.19, function()
@@ -2277,12 +2281,12 @@ function SectionMethods:AddDropdown(options)
     attachPressRipple(topButton, top)
     track(topButton.MouseEnter:Connect(function()
         if not open then
-            fluidTween(row, 0.16, {BackgroundTransparency = 0.58})
+            fluidTween(row, 0.16, {BackgroundTransparency = 0.20})
         end
     end))
     track(topButton.MouseLeave:Connect(function()
         if not open then
-            fluidTween(row, 0.18, {BackgroundTransparency = 0.70})
+            fluidTween(row, 0.18, {BackgroundTransparency = 0.34})
         end
     end))
     track(topButton.MouseButton1Click:Connect(function()
@@ -2405,12 +2409,12 @@ function SectionMethods:AddSlider(options)
 
     attachFluidScale(hitbox, row, 1.003, 0.997)
     track(hitbox.MouseEnter:Connect(function()
-        fluidTween(row, 0.16, {BackgroundTransparency = 0.58})
+        fluidTween(row, 0.16, {BackgroundTransparency = 0.20})
         fluidTween(knob, 0.16, {Size = UDim2.fromOffset(16, 16)})
     end))
     track(hitbox.MouseLeave:Connect(function()
         if not dragging then
-            fluidTween(row, 0.20, {BackgroundTransparency = 0.70})
+            fluidTween(row, 0.20, {BackgroundTransparency = 0.34})
             fluidTween(knob, 0.18, {Size = UDim2.fromOffset(14, 14)})
         end
     end))
@@ -2429,7 +2433,7 @@ function SectionMethods:AddInput(options)
     local box = create("TextBox", {
         Position = UDim2.fromOffset(10, 33),
         Size = UDim2.new(1, -20, 0, 34),
-        BackgroundColor3 = Color3.fromRGB(7, 20, 33),
+        BackgroundColor3 = Color3.fromRGB(12, 7, 22),
         BackgroundTransparency = 0.24,
         BorderSizePixel = 0,
         ClearTextOnFocus = options.ClearOnFocus == true,
@@ -2451,13 +2455,13 @@ function SectionMethods:AddInput(options)
     track(box.FocusLost:Connect(function(enterPressed)
         fluidTween(box, 0.18, {BackgroundTransparency = 0.24})
         fluidTween(boxStroke, 0.18, {Transparency = 0.62, Thickness = 1})
-        fluidTween(row, 0.20, {BackgroundTransparency = 0.70})
+        fluidTween(row, 0.20, {BackgroundTransparency = 0.34})
         safeCallback(options.Callback, box.Text, enterPressed)
     end))
     track(box.Focused:Connect(function()
         fluidTween(box, 0.16, {BackgroundTransparency = 0.08})
         fluidTween(boxStroke, 0.16, {Transparency = 0.10, Thickness = 2})
-        fluidTween(row, 0.16, {BackgroundTransparency = 0.56})
+        fluidTween(row, 0.16, {BackgroundTransparency = 0.18})
     end))
 
     registerSearchItem(self.Page, row, name)
@@ -2492,8 +2496,8 @@ function PageMethods:AddSection(title, side)
         Name = "SectionCard",
         Size = UDim2.new(1, -4, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundColor3 = Color3.fromRGB(8, 21, 34),
-        BackgroundTransparency = 0.06,
+        BackgroundColor3 = Color3.fromRGB(11, 7, 20),
+        BackgroundTransparency = 0.04,
         BorderSizePixel = 0,
         ClipsDescendants = true,
     }, parentColumn)
@@ -2507,8 +2511,8 @@ function PageMethods:AddSection(title, side)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Image = SETTINGS.SectionBackgroundImageId,
-        ImageColor3 = Color3.fromRGB(235, 247, 255),
-        ImageTransparency = 0.02,
+        ImageColor3 = Color3.fromRGB(115, 62, 170),
+        ImageTransparency = 0.24,
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 1,
     }, card)
@@ -2517,14 +2521,14 @@ function PageMethods:AddSection(title, side)
         Name = "SectionTextureShade",
         Rotation = 0,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(191, 224, 241)),
-            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(110, 164, 194)),
-            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(45, 91, 121)),
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(115, 61, 172)),
+            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(62, 27, 100)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 9, 34)),
         }),
         Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0.00, 0.12),
-            NumberSequenceKeypoint.new(0.52, 0.02),
-            NumberSequenceKeypoint.new(1.00, 0.18),
+            NumberSequenceKeypoint.new(0.00, 0.18),
+            NumberSequenceKeypoint.new(0.52, 0.10),
+            NumberSequenceKeypoint.new(1.00, 0.24),
         }),
     }, sectionTexture)
 
@@ -2544,8 +2548,8 @@ function PageMethods:AddSection(title, side)
     local sectionHeader = create("Frame", {
         LayoutOrder = 1,
         Size = UDim2.new(1, 0, 0, 38),
-        BackgroundColor3 = Color3.fromRGB(7, 20, 33),
-        BackgroundTransparency = 0.64,
+        BackgroundColor3 = Color3.fromRGB(9, 5, 17),
+        BackgroundTransparency = 0.20,
         BorderSizePixel = 0,
         ZIndex = 2,
     }, sectionContent)
@@ -2554,11 +2558,11 @@ function PageMethods:AddSection(title, side)
         title or "Section",
         UDim2.fromOffset(12, 0),
         UDim2.new(1, -24, 1, -2),
-        Color3.fromRGB(239, 250, 255),
+        COLORS.sectionText,
         14,
         Enum.Font.GothamBold
     )
-    sectionTitle.TextStrokeColor3 = Color3.fromRGB(3, 13, 22)
+    sectionTitle.TextStrokeColor3 = Color3.fromRGB(3, 1, 8)
     sectionTitle.TextStrokeTransparency = 0.24
     sectionTitle.ZIndex = 3
     create("Frame", {
@@ -3050,7 +3054,7 @@ function Window:RequestKeyAccess(onGranted)
         Name = "CodexAccessGate",
         Active = true,
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(2, 10, 17),
+        BackgroundColor3 = Color3.fromRGB(3, 1, 7),
         BackgroundTransparency = 0.10,
         BorderSizePixel = 0,
         GroupTransparency = 1,
@@ -3059,9 +3063,9 @@ function Window:RequestKeyAccess(onGranted)
     create("UIGradient", {
         Rotation = 118,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(2, 9, 15)),
-            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(12, 35, 50)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(4, 17, 27)),
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(2, 1, 5)),
+            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(28, 9, 47)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(6, 2, 13)),
         }),
     }, gate)
 
@@ -3070,12 +3074,12 @@ function Window:RequestKeyAccess(onGranted)
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(520, 356),
-        BackgroundColor3 = Color3.fromRGB(5, 20, 31),
+        BackgroundColor3 = Color3.fromRGB(11, 6, 20),
         BackgroundTransparency = 0.08,
         BorderSizePixel = 0,
         Image = SETTINGS.PanelBackgroundImageId,
-        ImageColor3 = Color3.fromRGB(136, 194, 221),
-        ImageTransparency = 0.24,
+        ImageColor3 = Color3.fromRGB(118, 61, 171),
+        ImageTransparency = 0.34,
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 901,
     }, gate)
@@ -3086,8 +3090,8 @@ function Window:RequestKeyAccess(onGranted)
     local shade = create("Frame", {
         Name = "ReadabilityShade",
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(3, 16, 26),
-        BackgroundTransparency = 0.18,
+        BackgroundColor3 = Color3.fromRGB(8, 4, 15),
+        BackgroundTransparency = 0.14,
         BorderSizePixel = 0,
         ZIndex = 902,
     }, card)
@@ -3098,7 +3102,7 @@ function Window:RequestKeyAccess(onGranted)
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.new(0.5, 0, 0, 19),
         Size = UDim2.fromOffset(64, 64),
-        BackgroundColor3 = Color3.fromRGB(8, 28, 42),
+        BackgroundColor3 = Color3.fromRGB(22, 10, 37),
         BackgroundTransparency = 0.16,
         BorderSizePixel = 0,
         Image = SETTINGS.ProfileLogoImageId,
@@ -3110,7 +3114,7 @@ function Window:RequestKeyAccess(onGranted)
 
     local title = makeLabel(card, "VOR HUB ACCESS", UDim2.fromOffset(0, 89), UDim2.new(1, 0, 0, 34), SNOW_WHITE, 25, Enum.Font.GothamBold)
     title.TextXAlignment = Enum.TextXAlignment.Center
-    title.TextStrokeColor3 = Color3.fromRGB(0, 8, 14)
+    title.TextStrokeColor3 = Color3.fromRGB(3, 1, 8)
     title.TextStrokeTransparency = 0.22
     title.ZIndex = 904
 
@@ -3131,7 +3135,7 @@ function Window:RequestKeyAccess(onGranted)
         Name = "DiscordKeyInput",
         Position = UDim2.fromOffset(38, 176),
         Size = UDim2.new(1, -76, 0, 48),
-        BackgroundColor3 = Color3.fromRGB(3, 15, 25),
+        BackgroundColor3 = Color3.fromRGB(10, 5, 18),
         BackgroundTransparency = 0.12,
         BorderSizePixel = 0,
         ClearTextOnFocus = false,
@@ -3177,7 +3181,7 @@ function Window:RequestKeyAccess(onGranted)
         Position = UDim2.new(0.54, 43, 0, 258),
         Size = UDim2.new(0.46, -81, 0, 52),
         AutoButtonColor = false,
-        BackgroundColor3 = Color3.fromRGB(13, 42, 60),
+        BackgroundColor3 = Color3.fromRGB(34, 15, 55),
         BackgroundTransparency = 0.08,
         BorderSizePixel = 0,
         Font = Enum.Font.GothamBold,
@@ -3321,7 +3325,7 @@ function Window:PlayIntro()
         Name = "CodexIntro",
         Active = true,
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(5, 14, 21),
+        BackgroundColor3 = Color3.fromRGB(3, 1, 8),
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
         ZIndex = 500,
@@ -3329,9 +3333,9 @@ function Window:PlayIntro()
     create("UIGradient", {
         Rotation = 115,
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(4, 12, 18)),
-            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(18, 39, 53)),
-            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(7, 20, 29)),
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(2, 1, 6)),
+            ColorSequenceKeypoint.new(0.48, Color3.fromRGB(31, 9, 51)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(7, 3, 15)),
         }),
     }, intro)
 
@@ -3359,7 +3363,7 @@ function Window:PlayIntro()
     }, intro)
 
     local introGlow = create("ImageLabel", {
-        Name = "FrozenBloom",
+        Name = "VorBloom",
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, -178),
         Size = UDim2.fromOffset(210, 210),
@@ -3398,7 +3402,7 @@ function Window:PlayIntro()
 
     local introFlakes = {}
     local introRandom = Random.new(2026)
-    local introSymbols = {utf8.char(0x2744), utf8.char(0x2745), utf8.char(0x2746)}
+    local introSymbols = {utf8.char(0x25C6), utf8.char(0x25C7), utf8.char(0x2726), utf8.char(0x2727), utf8.char(0x2756)}
     for flakeIndex = 1, 22 do
         local startX = introRandom:NextNumber(0.03, 0.97)
         local startY = introRandom:NextNumber(-0.20, 0.82)
@@ -3410,7 +3414,7 @@ function Window:PlayIntro()
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             Text = introSymbols[introRandom:NextInteger(1, #introSymbols)],
-            TextColor3 = SNOW_WHITE,
+            TextColor3 = COLORS.toggleOnBright,
             TextSize = introRandom:NextInteger(16, 34),
             TextStrokeColor3 = COLORS.accentDark,
             TextStrokeTransparency = 0.42,
@@ -3470,13 +3474,13 @@ function Window:PlayIntro()
     identity.TextTransparency = 1
     identity.ZIndex = 504
 
-    local discord = makeLabel(intro, SETTINGS.Discord, UDim2.new(0.5, 0, 0.5, 148), UDim2.new(1, -48, 0, 52), Color3.fromRGB(177, 211, 228), 30, Enum.Font.GothamSemibold)
+    local discord = makeLabel(intro, SETTINGS.Discord, UDim2.new(0.5, 0, 0.5, 148), UDim2.new(1, -48, 0, 52), Color3.fromRGB(198, 163, 230), 30, Enum.Font.GothamSemibold)
     discord.AnchorPoint = Vector2.new(0.5, 0.5)
     discord.TextXAlignment = Enum.TextXAlignment.Center
     discord.TextTransparency = 1
     discord.ZIndex = 504
 
-    -- Float the complete center composition together while snow continues independently.
+    -- Float the complete center composition while the VOR energy particles continue independently.
     for _, centerObject in ipairs({introGlow, introLogo, title, iceLine, identity, discord}) do
         centerObject.Parent = introContent
     end
@@ -3893,7 +3897,7 @@ local function selectHomeCategory(name)
             ImageTransparency = active and 0.02 or 0.14,
         })
         fluidTween(category.Label, 0.18, {
-            TextColor3 = active and SNOW_WHITE or Color3.fromRGB(232, 246, 253),
+            TextColor3 = active and SNOW_WHITE or COLORS.sectionMuted,
             TextTransparency = active and 0 or 0.08,
         })
         fluidTween(category.Stroke, 0.18, {
@@ -3920,7 +3924,7 @@ local function addHomeCategory(name, order, assetId)
         BackgroundTransparency = 0.16,
         BorderSizePixel = 0,
         Image = "rbxthumb://type=Asset&id=" .. tostring(assetId) .. "&w=420&h=420",
-        ImageColor3 = Color3.fromRGB(244, 252, 255),
+        ImageColor3 = Color3.fromRGB(255, 255, 255),
         ImageTransparency = 0.14,
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 21,
@@ -3946,7 +3950,7 @@ local function addHomeCategory(name, order, assetId)
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.fromScale(0, 1),
         Size = UDim2.new(1, 0, 0, 28),
-        BackgroundColor3 = Color3.fromRGB(10, 31, 44),
+        BackgroundColor3 = Color3.fromRGB(10, 5, 18),
         BackgroundTransparency = 0.14,
         BorderSizePixel = 0,
         ZIndex = 23,
@@ -3954,7 +3958,7 @@ local function addHomeCategory(name, order, assetId)
     addCorner(caption, 9)
     create("UIGradient", {
         Rotation = 90,
-        Color = ColorSequence.new(Color3.fromRGB(38, 79, 101), Color3.fromRGB(8, 27, 39)),
+        Color = ColorSequence.new(Color3.fromRGB(79, 31, 124), Color3.fromRGB(8, 4, 15)),
         Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0, 0.36),
             NumberSequenceKeypoint.new(1, 0.02),
@@ -3968,9 +3972,9 @@ local function addHomeCategory(name, order, assetId)
         BorderSizePixel = 0,
         Font = Enum.Font.GothamBold,
         Text = name,
-        TextColor3 = Color3.fromRGB(232, 246, 253),
+        TextColor3 = COLORS.sectionText,
         TextSize = 13,
-        TextStrokeColor3 = Color3.fromRGB(5, 19, 28),
+        TextStrokeColor3 = Color3.fromRGB(3, 1, 8),
         TextStrokeTransparency = 0.22,
         ZIndex = 24,
     }, caption)
@@ -3979,7 +3983,7 @@ local function addHomeCategory(name, order, assetId)
         AnchorPoint = Vector2.new(0.5, 1),
         Position = UDim2.new(0.5, 0, 1, -1),
         Size = UDim2.new(0.68, 0, 0, 4),
-        BackgroundColor3 = SNOW_WHITE,
+        BackgroundColor3 = COLORS.toggleOnBright,
         BorderSizePixel = 0,
         Visible = false,
         ZIndex = 25,
@@ -8972,7 +8976,7 @@ end
 local SettingsPage = Window:AddPage("Settings")
 local ProfilesSection = SettingsPage:AddSection("Saved Profiles", "Left")
 local AutoLoadSection = SettingsPage:AddSection("Auto Load", "Right")
-local AppearanceSection = SettingsPage:AddSection("Frozen Appearance", "Right")
+local AppearanceSection = SettingsPage:AddSection("VOR Appearance", "Right")
 local CommunitySection = SettingsPage:AddSection("Access & Community", "Left")
 
 CommunitySection:AddLabel("Discord provides the current key, supported-game list, updates, feedback, and suggestions.")
@@ -8999,21 +9003,21 @@ CommunitySection:AddButton({
 })
 
 local frozenPresets = {
-    ["Snowstorm White"] = Color3.fromRGB(218, 242, 252),
-    ["Winter Steel"] = Color3.fromRGB(177, 219, 239),
-    ["Glacier Blue"] = Color3.fromRGB(105, 218, 255),
-    ["Arctic Cyan"] = Color3.fromRGB(88, 255, 248),
-    ["Frost White"] = Color3.fromRGB(210, 245, 255),
-    ["Deep Freeze"] = Color3.fromRGB(65, 149, 255),
-    ["Frozen Mint"] = Color3.fromRGB(121, 255, 218),
-    ["Steel Ice"] = Color3.fromRGB(162, 201, 230),
+    ["VOR Violet"] = Color3.fromRGB(151, 70, 255),
+    ["Royal Purple"] = Color3.fromRGB(129, 46, 226),
+    ["Neon Amethyst"] = Color3.fromRGB(199, 91, 255),
+    ["Abyss Purple"] = Color3.fromRGB(91, 35, 167),
+    ["Void Magenta"] = Color3.fromRGB(174, 46, 211),
+    ["Silver Violet"] = Color3.fromRGB(188, 164, 226),
+    ["Blacklight"] = Color3.fromRGB(104, 52, 255),
+    ["Imperial Plum"] = Color3.fromRGB(119, 44, 143),
 }
 
 local frozenAccentControl = AppearanceSection:AddDropdown({
-    Name = "Ice Accent Color",
+    Name = "VOR Accent Color",
     Flag = "frozen_accent_preset",
-    Options = {"Snowstorm White", "Winter Steel", "Glacier Blue", "Arctic Cyan", "Frost White", "Deep Freeze", "Frozen Mint", "Steel Ice"},
-    Default = "Snowstorm White",
+    Options = {"VOR Violet", "Royal Purple", "Neon Amethyst", "Abyss Purple", "Void Magenta", "Silver Violet", "Blacklight", "Imperial Plum"},
+    Default = "VOR Violet",
     Callback = function(value)
         local color = frozenPresets[value]
         if color then
@@ -9035,12 +9039,12 @@ local transparencyControl = AppearanceSection:AddSlider({
 })
 
 AppearanceSection:AddButton({
-    Name = "Reset Frozen Theme",
-    Description = "Restore transparent white glass and the snowstorm accent",
+    Name = "Reset VOR Theme",
+    Description = "Restore the obsidian glass and signature VOR violet accent",
     Persist = false,
     Callback = function()
-        frozenAccentControl:Set("Snowstorm White")
-        transparencyControl:Set(0.62)
+        frozenAccentControl:Set("VOR Violet")
+        transparencyControl:Set(0.24)
     end,
 })
 
