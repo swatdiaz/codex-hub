@@ -5,21 +5,26 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoDirectory = $PSScriptRoot
-$sourceFile = Join-Path (Split-Path $repoDirectory -Parent) "codex_hub.lua"
-$repoFile = Join-Path $repoDirectory "codex_hub.lua"
+$sourceDirectory = Split-Path $repoDirectory -Parent
+$sourceFiles = @(
+    "codex_hub.lua",
+    "anime_expeditions.lua"
+)
 $git = "C:\Program Files\Git\cmd\git.exe"
 
 if (-not (Test-Path -LiteralPath $git)) {
     $git = (Get-Command git -ErrorAction Stop).Source
 }
 
-if (-not (Test-Path -LiteralPath $sourceFile)) {
-    throw "Hub source was not found: $sourceFile"
+foreach ($fileName in $sourceFiles) {
+    $sourceFile = Join-Path $sourceDirectory $fileName
+    if (-not (Test-Path -LiteralPath $sourceFile)) {
+        throw "Hub source was not found: $sourceFile"
+    }
+    Copy-Item -LiteralPath $sourceFile -Destination (Join-Path $repoDirectory $fileName) -Force
 }
 
-Copy-Item -LiteralPath $sourceFile -Destination $repoFile -Force
-
-& $git -C $repoDirectory add -- "codex_hub.lua"
+& $git -C $repoDirectory add -- $sourceFiles "update-github.ps1"
 & $git -C $repoDirectory diff --cached --quiet
 
 if ($LASTEXITCODE -eq 0) {

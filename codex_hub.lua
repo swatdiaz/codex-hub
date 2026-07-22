@@ -92,6 +92,15 @@ local SUPPORTED_GAMES = {
             [124914780116925] = true,
         },
     },
+    AnimeExpeditions = {
+        Key = "AnimeExpeditions",
+        DisplayName = "Anime Expeditions",
+        UniverseId = 7613921865,
+        RootPlaceId = 84515722934860,
+        PlaceIds = {
+            [84515722934860] = true,
+        },
+    },
 }
 
 local function resolveGameSupport()
@@ -104,6 +113,25 @@ local function resolveGameSupport()
 end
 
 local ACTIVE_GAME_SUPPORT = resolveGameSupport()
+
+-- Optional game modules are fetched from the exact GitHub commit that is live
+-- when the hub starts. Keeping large integrations separate prevents one game's
+-- controls and runtime hooks from leaking into another supported experience.
+local function loadCodexGameModule(fileName)
+    local repository = "swatdiaz/codex-hub"
+    local commitApi = "https://api.github.com/repos/" .. repository .. "/commits/main"
+    local metadata = HttpService:JSONDecode(game:HttpGet(commitApi))
+    local commit = metadata and metadata.sha
+    assert(type(commit) == "string" and #commit >= 7, "Could not resolve the current Codex Hub commit")
+
+    local url = "https://raw.githubusercontent.com/" .. repository .. "/" .. commit .. "/" .. tostring(fileName)
+    local source = game:HttpGet(url)
+    local chunk, compileError = loadstring(source)
+    assert(chunk, "Codex game module compile failed: " .. tostring(compileError))
+    local module = chunk()
+    assert(type(module) == "function", "Codex game module did not return a builder")
+    return module
+end
 
 -- Keep the legacy storage path so existing profiles and autoload selections survive the rebrand.
 -- Profiles remain separated by PlaceId so values never carry into another game.
@@ -1450,13 +1478,17 @@ local Window = {
 local hubVisible = true
 local hubVisibilityToken = 0
 
+local function hubEffectsActive()
+    return hubVisible and not Window.Minimized
+end
+
 function Window:SetVisible(visible)
     hubVisibilityToken += 1
     local token = hubVisibilityToken
     hubVisible = visible == true
     if hubVisible then
         gui.Enabled = true
-        snowGui.Enabled = SETTINGS.SnowEnabled
+        snowGui.Enabled = SETTINGS.SnowEnabled and not self.Minimized
         main.Visible = true
         if self.ClampToViewport then
             self:ClampToViewport(Window.Minimized and UDim2.fromOffset(850, 46) or UDim2.fromOffset(850, 560))
@@ -1475,7 +1507,7 @@ function Window:SetVisible(visible)
             end
         end)
     end
-    setHubMusicVisible(hubVisible, false)
+    setHubMusicVisible(hubEffectsActive(), false)
 end
 
 function Window:ToggleVisible()
@@ -1600,7 +1632,7 @@ local function startSnowfall()
         task.spawn(function()
             task.wait(random:NextNumber(0, 2.5))
             while snowGui.Parent do
-                while snowGui.Parent and not hubVisible do
+                while snowGui.Parent and not hubEffectsActive() do
                     flake.Visible = false
                     task.wait(0.15)
                 end
@@ -1628,10 +1660,10 @@ local function startSnowfall()
                 )
                 fall:Play()
 
-                while snowGui.Parent and hubVisible and fall.PlaybackState == Enum.PlaybackState.Playing do
+                while snowGui.Parent and hubEffectsActive() and fall.PlaybackState == Enum.PlaybackState.Playing do
                     task.wait(0.10)
                 end
-                if not hubVisible then
+                if not hubEffectsActive() then
                     fall:Cancel()
                 end
                 flake.Visible = false
@@ -3705,6 +3737,9 @@ track(minimizeButton.MouseButton1Click:Connect(function()
     Window.Minimized = not Window.Minimized
     minimizeButton.Text = Window.Minimized and "+" or "-"
     playToggleClick(not Window.Minimized)
+    snowGui.Enabled = SETTINGS.SnowEnabled and hubEffectsActive()
+    setHubMusicVisible(hubEffectsActive(), false)
+    gui:SetAttribute("HubEffectsPaused", Window.Minimized)
     local animatedContent = {sidebar, searchFrame, pageHolder, welcomeCard, avatarCard, contentBackdrop, icicleLayer}
     local targetSize = Window.Minimized and UDim2.fromOffset(850, 46) or UDim2.fromOffset(850, 560)
     Window:ClampToViewport(targetSize)
@@ -8867,6 +8902,31 @@ gui:SetAttribute("BasketballDribbleDecal", CATEGORY_DECALS.Dribble)
 gui:SetAttribute("BasketballExploitsDecal", CATEGORY_DECALS.Exploits)
 end
 
+local function buildAnimeExpeditionsFeatures()
+    local loaded, moduleOrError = pcall(loadCodexGameModule, "anime_expeditions.lua")
+    if not loaded then
+        local HomePage = Window:AddPage("Home")
+        local errorSection = HomePage:AddSection("Anime Expeditions", "Left")
+        errorSection:AddLabel("The game module could not be loaded.")
+        errorSection:AddLabel(tostring(moduleOrError))
+        Window:Notify("Codex Hub", "Anime Expeditions module failed to load", 5)
+        return
+    end
+
+    local built, buildError = pcall(moduleOrError, {
+        Window = Window,
+        CreateCategoryHomePage = createCategoryHomePage,
+        CategoryDecals = CATEGORY_DECALS,
+        Colors = COLORS,
+        Track = track,
+        Gui = gui,
+    })
+    if not built then
+        gui:SetAttribute("AnimeExpeditionsBuildError", tostring(buildError))
+        Window:Notify("Codex Hub", "Anime Expeditions controls failed: " .. tostring(buildError), 7)
+    end
+end
+
 local function buildUnsupportedGameShell()
     local HomePage = Window:AddPage("Home")
     local supportSection = HomePage:AddSection("Game Support", "Left")
@@ -8889,6 +8949,12 @@ elseif ACTIVE_GAME_SUPPORT and ACTIVE_GAME_SUPPORT.Key == "Basketball" then
     gui:SetAttribute("GameSupportKey", ACTIVE_GAME_SUPPORT.Key)
     gui:SetAttribute("SupportedUniverseId", ACTIVE_GAME_SUPPORT.UniverseId)
     buildBasketballFeatures()
+elseif ACTIVE_GAME_SUPPORT and ACTIVE_GAME_SUPPORT.Key == "AnimeExpeditions" then
+    statusGui.Enabled = false
+    gui:SetAttribute("GameSupported", true)
+    gui:SetAttribute("GameSupportKey", ACTIVE_GAME_SUPPORT.Key)
+    gui:SetAttribute("SupportedUniverseId", ACTIVE_GAME_SUPPORT.UniverseId)
+    buildAnimeExpeditionsFeatures()
 else
     statusGui.Enabled = false
     gui:SetAttribute("GameSupported", false)
