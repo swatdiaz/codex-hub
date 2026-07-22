@@ -48,12 +48,12 @@ return function(context)
     local state = {
         Alive = true,
         FullAfk = false,
-        AntiAfk = false,
+        AntiAfk = true,
         AutoStartVote = false,
         AutoSkip = false,
         AutoReplay = false,
         AutoMacro = false,
-        AutoReconnect = false,
+        AutoReconnect = true,
         Recording = false,
         Playing = false,
         LoopMacro = false,
@@ -200,11 +200,10 @@ return function(context)
         end) or findReplica("HotbarData")
     end
 
-    local function callEndpoint(endpoint, ...)
+    local function invokeEndpoint(endpoint, arguments)
         if not endpoint then
             return false, "endpoint unavailable"
         end
-        local arguments = table.pack(...)
         local ok, result = pcall(function()
             if type(endpoint.FireServer) == "function" then
                 return endpoint:FireServer(table.unpack(arguments, 1, arguments.n))
@@ -220,12 +219,44 @@ return function(context)
         return ok, result
     end
 
+    -- Some executor builds temporarily lower the capability of the thread that
+    -- fires a game node. Run each network call on its own disposable task so UI
+    -- construction and later control updates keep normal Instance access.
+    local function callEndpoint(endpoint, ...)
+        local arguments = table.pack(...)
+        local finished = false
+        local ok, result
+        task.spawn(function()
+            ok, result = invokeEndpoint(endpoint, arguments)
+            finished = true
+        end)
+        while not finished do
+            task.wait()
+        end
+        return ok, result
+    end
+
     local function getNode(name)
         return Nodes and Nodes[name] or nil
     end
 
     local function callNode(name, ...)
-        return callEndpoint(getNode(name), ...)
+        local arguments = table.pack(...)
+        local finished = false
+        local ok, result
+        task.spawn(function()
+            local resolved, endpoint = pcall(getNode, name)
+            if not resolved then
+                ok, result = false, endpoint
+            else
+                ok, result = invokeEndpoint(endpoint, arguments)
+            end
+            finished = true
+        end)
+        while not finished do
+            task.wait()
+        end
+        return ok, result
     end
 
     local function nodeNames(predicate)
@@ -262,7 +293,7 @@ return function(context)
     end
 
     local function getSetting(name)
-        local ok, value = callEndpoint(getNode("GET_SETTING_VALUE"), name)
+        local ok, value = callNode("GET_SETTING_VALUE", name)
         return ok and value == true
     end
 
@@ -1230,8 +1261,8 @@ return function(context)
 
     SummonSettingsSection:AddToggle({
         Name = "Fast Summon",
-        Description = "Uses the game's FastSummon setting",
-        Default = getSetting("FastSummon"),
+        Description = "Changes the game's FastSummon setting only after you toggle it",
+        Default = false,
         Callback = function(enabled)
             state.FastSummon = enabled
             setSetting("FastSummon", enabled)
@@ -1250,8 +1281,8 @@ return function(context)
 
     SummonSettingsSection:AddToggle({
         Name = "Summon Max",
-        Description = "Enables the game's maximum summon tier setting",
-        Default = getSetting("SummonMax"),
+        Description = "Changes the game's maximum summon tier setting only after you toggle it",
+        Default = false,
         Callback = function(enabled)
             state.SummonMax = enabled
             setSetting("SummonMax", enabled)
@@ -1423,7 +1454,7 @@ return function(context)
     local antiAfkControl = AfkSection:AddToggle({
         Name = "Anti-AFK / Anti-Idle",
         Description = "Responds only when Roblox sends an idle signal",
-        Default = false,
+        Default = true,
         Callback = function(enabled)
             state.AntiAfk = enabled
         end,
@@ -1439,8 +1470,8 @@ return function(context)
 
     local autoSkipControl = MatchSection:AddToggle({
         Name = "Auto Skip Waves",
-        Description = "Synchronizes the game's AutoSkipWaves setting",
-        Default = getSetting("AutoSkipWaves"),
+        Description = "Synchronizes AutoSkipWaves only after you toggle it",
+        Default = false,
         Callback = function(enabled)
             state.AutoSkip = enabled
             setSetting("AutoSkipWaves", enabled)
@@ -1497,7 +1528,7 @@ return function(context)
     RecoverySection:AddToggle({
         Name = "Auto Reconnect On Error",
         Description = "Rejoins only after Roblox reports a disconnect error",
-        Default = false,
+        Default = true,
         Callback = function(enabled)
             state.AutoReconnect = enabled
         end,
@@ -1536,7 +1567,10 @@ return function(context)
         if state.AntiAfk then
             pcall(function()
                 VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new(0, 0))
+                VirtualUser:ClickButton2(
+                    Vector2.new(0, 0),
+                    workspace.CurrentCamera and workspace.CurrentCamera.CFrame or CFrame.new()
+                )
             end)
             setStatus("Anti-AFK pulse sent", true)
         end
