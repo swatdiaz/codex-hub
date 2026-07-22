@@ -23,7 +23,8 @@ return function(context)
 
     local HomePage, addHomeCategory, selectHomeCategory = createCategoryHomePage()
     local AfkPage = addHomeCategory("AFK", 1, CATEGORY_DECALS.Overnight)
-    local MacroPage = addHomeCategory("Macro", 2, CATEGORY_DECALS.Combat)
+    local MissionPage = addHomeCategory("Missions", 2, CATEGORY_DECALS.Combat)
+    local MacroPage = MissionPage
     local SummonPage = addHomeCategory("Summon", 3, CATEGORY_DECALS.Weapons)
     local UnitsPage = addHomeCategory("Units", 4, CATEGORY_DECALS.Weapons)
     local ProgressPage = addHomeCategory("Progress", 5, CATEGORY_DECALS.Progress)
@@ -32,6 +33,10 @@ return function(context)
     local MatchSection = AfkPage:AddSection("Match Automation", "Left")
     local StatusSection = AfkPage:AddSection("Live Status", "Right")
     local RecoverySection = AfkPage:AddSection("Recovery", "Right")
+    local MissionOverviewSection = MissionPage:AddSection("Mission Overview", "Left")
+    local MissionCombatSection = MissionPage:AddSection("Placed Unit Automation", "Right")
+    local MissionFlowSection = MissionPage:AddSection("Mission Flow", "Left")
+    local MissionSafetySection = MissionPage:AddSection("Mission Safety", "Right")
     local RecorderSection = MacroPage:AddSection("Macro Recorder", "Left")
     local PlaybackSection = MacroPage:AddSection("Macro Playback", "Right")
     local MacroInfoSection = MacroPage:AddSection("Recorded Route", "Right")
@@ -53,6 +58,7 @@ return function(context)
         AutoStartVote = false,
         AutoSkip = false,
         AutoReplay = false,
+        AutoReturnLobby = false,
         AutoMacro = false,
         AutoReconnect = false,
         Recording = false,
@@ -67,6 +73,15 @@ return function(context)
         LastRecordedAt = 0,
         LastReplay = 0,
         LastVote = {},
+        AutoAbilities = false,
+        AbilityInterval = 2,
+        LastAbility = 0,
+        AutoUpgradePlaced = false,
+        UpgradePlacedInterval = 0.45,
+        LastPlacedUpgrade = 0,
+        AbilityCasts = 0,
+        UpgradeRequests = 0,
+        MissionPreset = false,
         AutoSummon = false,
         SummonBanner = "Standard",
         SummonAmount = 10,
@@ -115,6 +130,12 @@ return function(context)
     local matchLabel = StatusSection:AddLabel("Match: Reading GameState...")
     local macroLabel = StatusSection:AddLabel("Macro: Idle")
     local queueLabel = StatusSection:AddLabel("Queue: 0 actions")
+    local missionStateLabel = MissionOverviewSection:AddLabel("State: Waiting for a mission...")
+    local missionWaveLabel = MissionOverviewSection:AddLabel("Wave: 0 | Enemies: 0")
+    local missionEconomyLabel = MissionOverviewSection:AddLabel("Money: 0 | Placed units: 0")
+    local missionBaseLabel = MissionOverviewSection:AddLabel("Base: Waiting for GameState...")
+    local missionActionLabel = MissionCombatSection:AddLabel("Automation: Idle outside missions")
+    local missionSafetyLabel = MissionSafetySection:AddLabel("Safety: Match-only checks armed")
     local summonStatusLabel = SummonSection:AddLabel("Summon: Ready")
     local balanceLabel = SummonSection:AddLabel("Balance: Reading...")
     local pityLabel = SummonSettingsSection:AddLabel("Pity: Reading selected banner...")
@@ -513,6 +534,141 @@ return function(context)
         return units
     end
 
+    local function missionIsLive(info)
+        info = info or currentGameInfo()
+        local lowered = string.lower(tostring(info.State or ""))
+        return gameStateReplica() ~= nil and (
+            lowered == "inprogress"
+            or lowered == "in progress"
+            or lowered == "playing"
+            or lowered == "started"
+            or lowered == "ingame"
+            or lowered == "in game"
+            or lowered == "running"
+            or lowered == "wave"
+        )
+    end
+
+    local function missionEnemyCount()
+        local count = 0
+        for _, replica in pairs(replicas()) do
+            local token = string.lower(tostring(replica.Token or ""))
+            if (token:find("enemy", 1, true) or token:find("mob", 1, true)) and replica.Data then
+                local data = replica.Data
+                local health = tonumber(data.Health or data.HP or data.CurrentHealth)
+                local dead = data.Dead == true or data.IsDead == true or (health ~= nil and health <= 0)
+                if not dead then
+                    count += 1
+                end
+            end
+        end
+        return count
+    end
+
+    local function missionSnapshot()
+        local info = currentGameInfo()
+        local replica = gameStateReplica()
+        local data = replica and replica.Data or {}
+        local wave = findNumericByName(data, {
+            wave = true,
+            currentwave = true,
+            wavenumber = true,
+        }, 0, {}) or 0
+        local maxWave = findNumericByName(data, {
+            maxwave = true,
+            totalwaves = true,
+            wavecount = true,
+        }, 0, {}) or 0
+        local baseHealth = findNumericByName(data, {
+            basehealth = true,
+            currentbasehealth = true,
+            lives = true,
+            life = true,
+        }, 0, {})
+        local maxBaseHealth = findNumericByName(data, {
+            maxbasehealth = true,
+            basemaxhealth = true,
+            maxlives = true,
+        }, 0, {})
+        return {
+            Info = info,
+            Live = missionIsLive(info),
+            Wave = wave,
+            MaxWave = maxWave,
+            Enemies = missionEnemyCount(),
+            Money = currentMatchMoney(),
+            Placed = #ownedGameUnits(),
+            BaseHealth = baseHealth,
+            MaxBaseHealth = maxBaseHealth,
+        }
+    end
+
+    local function fireReplicaSignal(replica, signalName, ...)
+        if not ReplicaSignal or not replica then
+            return false, "Mission replica is unavailable"
+        end
+        local arguments = table.pack(...)
+        state.InternalSignal = true
+        local ok, result = pcall(function()
+            return ReplicaSignal:FireServer(replica.Id, signalName, table.unpack(arguments, 1, arguments.n))
+        end)
+        state.InternalSignal = false
+        return ok, result
+    end
+
+    local function castPlacedAbilities()
+        if not missionIsLive() then
+            return false, "Abilities wait until a mission is in progress"
+        end
+        local sent = 0
+        for _, replica in ipairs(ownedGameUnits()) do
+            local data = replica.Data or {}
+            local abilityReady = data.AbilityReady ~= false
+                and data.AbilityOnCooldown ~= true
+                and data.OnCooldown ~= true
+            if abilityReady then
+                local ok = fireReplicaSignal(replica, "UseAbility")
+                if ok then
+                    sent += 1
+                end
+            end
+        end
+        state.AbilityCasts += sent
+        return sent > 0, sent > 0
+            and ("Used abilities on " .. tostring(sent) .. " placed unit(s)")
+            or "No ready placed-unit abilities were found"
+    end
+
+    local function upgradeOnePlacedUnit()
+        if not missionIsLive() then
+            return false, "Upgrades wait until a mission is in progress"
+        end
+        local gameReplica = gameStateReplica()
+        if not gameReplica then
+            return false, "GameState is unavailable"
+        end
+        local candidates = ownedGameUnits()
+        table.sort(candidates, function(a, b)
+            local aUpgrade = tonumber((a.Data or {}).Upgrade or (a.Data or {}).UpgradeLevel) or 0
+            local bUpgrade = tonumber((b.Data or {}).Upgrade or (b.Data or {}).UpgradeLevel) or 0
+            return aUpgrade < bUpgrade
+        end)
+        for _, replica in ipairs(candidates) do
+            local data = replica.Data or {}
+            local upgrade = tonumber(data.Upgrade or data.UpgradeLevel) or 0
+            local maxUpgrade = tonumber(data.MaxUpgrade or data.MaxUpgradeLevel)
+            if not maxUpgrade or upgrade < maxUpgrade then
+                local unitId = tostring(data.ID or replica.Id)
+                local ok = fireReplicaSignal(gameReplica, "UpgradeGameUnit", unitId, upgrade + 1)
+                if ok then
+                    state.UpgradeRequests += 1
+                    return true, string.format("Upgrade requested for %s to level %d", unitId, upgrade + 1)
+                end
+            end
+        end
+        return false, "All placed units appear fully upgraded"
+    end
+
     local function unitReferenceMap()
         local references = {}
         for order, replica in ipairs(ownedGameUnits()) do
@@ -820,6 +976,12 @@ return function(context)
                 local title = tostring(((replica.Data.Parameters or {}).Title) or "Vote")
                 local lower = string.lower(title)
                 if state.AutoStartVote and lower:find("start") then
+                    answerVote(replica, title)
+                elseif state.AutoReturnLobby and (
+                    lower:find("lobby", 1, true)
+                    or lower:find("return", 1, true)
+                    or lower:find("leave", 1, true)
+                ) then
                     answerVote(replica, title)
                 elseif state.AutoReplay and (lower:find("replay") or lower:find("again") or lower:find("restart")) then
                     answerVote(replica, title)
@@ -1485,6 +1647,111 @@ return function(context)
         end,
     })
 
+    MissionOverviewSection:AddLabel("Reads GameState and placed units without running lobby actions.")
+
+    local autoAbilityControl = MissionCombatSection:AddToggle({
+        Name = "Auto Use Placed Abilities",
+        Description = "Uses ready abilities only while GameState reports an active mission",
+        Default = false,
+        Callback = function(enabled)
+            state.AutoAbilities = enabled
+            missionActionLabel.Text = enabled and "Automation: Ability cycle armed" or "Automation: Ability cycle disabled"
+        end,
+    })
+
+    MissionCombatSection:AddSlider({
+        Name = "Ability Check Interval",
+        Min = 0.5,
+        Max = 10,
+        Default = state.AbilityInterval,
+        Rounding = 1,
+        Suffix = "s",
+        Callback = function(value)
+            state.AbilityInterval = value
+        end,
+    })
+
+    MissionCombatSection:AddButton({
+        Name = "Use Ready Abilities Now",
+        Description = "Runs one match-only ability pass",
+        Callback = function()
+            local ok, message = castPlacedAbilities()
+            missionActionLabel.Text = "Automation: " .. message
+            if not ok then
+                setStatus(message, false)
+            end
+        end,
+    })
+
+    local autoUpgradePlacedControl = MissionCombatSection:AddToggle({
+        Name = "Auto Upgrade Placed Units",
+        Description = "Balances upgrades across your placed units during active waves",
+        Default = false,
+        Callback = function(enabled)
+            state.AutoUpgradePlaced = enabled
+            missionActionLabel.Text = enabled and "Automation: Smart upgrades armed" or "Automation: Smart upgrades disabled"
+        end,
+    })
+
+    MissionCombatSection:AddSlider({
+        Name = "Upgrade Check Interval",
+        Min = 0.25,
+        Max = 5,
+        Default = state.UpgradePlacedInterval,
+        Rounding = 2,
+        Suffix = "s",
+        Callback = function(value)
+            state.UpgradePlacedInterval = value
+        end,
+    })
+
+    MissionCombatSection:AddButton({
+        Name = "Upgrade One Placed Unit",
+        Description = "Sends one verified UpgradeGameUnit request",
+        Callback = function()
+            local ok, message = upgradeOnePlacedUnit()
+            missionActionLabel.Text = "Automation: " .. message
+            if not ok then
+                setStatus(message, false)
+            end
+        end,
+    })
+
+    local autoReturnLobbyControl = MissionFlowSection:AddToggle({
+        Name = "Auto Return To Lobby",
+        Description = "Accepts a lobby, return, or leave vote after the result screen",
+        Default = false,
+        Callback = function(enabled)
+            state.AutoReturnLobby = enabled
+        end,
+    })
+
+    MissionFlowSection:AddLabel("Auto Start, Auto Skip, Auto Replay, and the selected route remain in the AFK tab.")
+
+    local missionPresetControl
+    missionPresetControl = MissionFlowSection:AddToggle({
+        Name = "Enable Mission AFK Preset",
+        Description = "Links anti-idle, start, skip, replay, abilities, upgrades, and the selected macro",
+        Default = false,
+        Callback = function(enabled)
+            state.MissionPreset = enabled
+            antiAfkControl:Set(enabled)
+            autoStartControl:Set(enabled)
+            autoSkipControl:Set(enabled)
+            autoReplayControl:Set(enabled)
+            autoAbilityControl:Set(enabled)
+            autoUpgradePlacedControl:Set(enabled)
+            autoMacroControl:Set(enabled and state.SelectedMacro ~= nil)
+            missionSafetyLabel.Text = enabled
+                and "Safety: Mission AFK armed; lobby actions remain blocked"
+                or "Safety: Mission AFK disabled"
+            setStatus(enabled and "Mission AFK preset armed" or "Mission AFK preset disabled", true)
+        end,
+    })
+
+    MissionSafetySection:AddLabel("Ability and upgrade requests fail closed unless GameState is actively running.")
+    MissionSafetySection:AddLabel("The preset never summons, rerolls, sells inventory, or claims rewards.")
+
     local fullAfkControl
     fullAfkControl = AfkSection:AddToggle({
         Name = "Enable Full AFK",
@@ -1497,6 +1764,8 @@ return function(context)
             autoSkipControl:Set(enabled)
             autoReplayControl:Set(enabled)
             autoMacroControl:Set(enabled)
+            autoAbilityControl:Set(enabled)
+            autoUpgradePlacedControl:Set(enabled)
             setStatus(enabled and "Full AFK armed" or "Full AFK disabled", true)
         end,
     })
@@ -1532,8 +1801,16 @@ return function(context)
             state.AutoAscend = false
             state.AutoPotential = false
             state.AutoTrait = false
+            state.AutoAbilities = false
+            state.AutoUpgradePlaced = false
+            state.AutoReturnLobby = false
+            state.MissionPreset = false
             state.Playing = false
             fullAfkControl:Set(false)
+            missionPresetControl:Set(false)
+            autoAbilityControl:Set(false)
+            autoUpgradePlacedControl:Set(false)
+            autoReturnLobbyControl:Set(false)
             autoSummonControl:Set(false, true)
             setStatus("All Anime Expeditions automation stopped", true)
         end,
@@ -1653,6 +1930,7 @@ return function(context)
         while state.Alive do
             local now = os.clock()
             local info = currentGameInfo()
+            local mission = missionSnapshot()
             state.LastGameState = info.State
             processVotes()
 
@@ -1669,6 +1947,24 @@ return function(context)
                 end)
             elseif state.LoopMacro and not state.Playing and state.SelectedMacro and info.State == "InProgress" then
                 task.spawn(playMacroOnce)
+            end
+
+            if state.AutoAbilities and mission.Live and now - state.LastAbility >= state.AbilityInterval then
+                state.LastAbility = now
+                local ok, message = castPlacedAbilities()
+                missionActionLabel.Text = "Automation: " .. message
+                if ok then
+                    missionSafetyLabel.Text = "Safety: Ability pass confirmed inside active mission"
+                end
+            end
+
+            if state.AutoUpgradePlaced and mission.Live and now - state.LastPlacedUpgrade >= state.UpgradePlacedInterval then
+                state.LastPlacedUpgrade = now
+                local ok, message = upgradeOnePlacedUnit()
+                missionActionLabel.Text = "Automation: " .. message
+                if ok then
+                    missionSafetyLabel.Text = "Safety: Upgrade request sent inside active mission"
+                end
             end
 
             if state.AutoSummon and now - state.LastSummon >= state.SummonInterval then
@@ -1714,6 +2010,25 @@ return function(context)
             adapterLabel.Text = "Adapter: " .. state.AdapterStatus
             adapterLabel.TextColor3 = adapterReady and COLORS.success or COLORS.muted
             matchLabel.Text = string.format("Match: %s | %s | %s | %s", info.State, info.Map, info.Difficulty, info.Act)
+            missionStateLabel.Text = string.format(
+                "State: %s | %s | %s | %s",
+                mission.Info.State,
+                mission.Info.Map,
+                mission.Info.Difficulty,
+                mission.Info.Act
+            )
+            missionStateLabel.TextColor3 = mission.Live and COLORS.success or COLORS.muted
+            missionWaveLabel.Text = mission.MaxWave > 0
+                and string.format("Wave: %d / %d | Enemies: %d", mission.Wave, mission.MaxWave, mission.Enemies)
+                or string.format("Wave: %d | Enemies: %d", mission.Wave, mission.Enemies)
+            missionEconomyLabel.Text = string.format("Money: %d | Placed units: %d", mission.Money, mission.Placed)
+            if mission.BaseHealth ~= nil then
+                missionBaseLabel.Text = mission.MaxBaseHealth ~= nil
+                    and string.format("Base: %s / %s", tostring(mission.BaseHealth), tostring(mission.MaxBaseHealth))
+                    or ("Base: " .. tostring(mission.BaseHealth))
+            else
+                missionBaseLabel.Text = mission.Live and "Base: No health field exposed" or "Base: Waiting for active GameState"
+            end
             macroLabel.Text = string.format("Macro: %s | %s", state.Recording and "Recording" or (state.Playing and "Playing" or "Idle"), state.SelectedMacro or "none selected")
             queueLabel.Text = state.Playing and queueLabel.Text or ("Queue: " .. tostring(#state.MacroEvents) .. " recorded actions")
             balanceLabel.Text = string.format("Balance: %d %s | Cost: %d x%d", balance, meta.Currency, meta.Cost, state.SummonAmount)
@@ -1765,6 +2080,7 @@ return function(context)
         gui:SetAttribute("AnimeExpeditionsUniverseId", 7613921865)
         gui:SetAttribute("AnimeExpeditionsMacroFolder", MACRO_FOLDER)
         gui:SetAttribute("AnimeExpeditionsAfkDecal", CATEGORY_DECALS.Overnight)
+        gui:SetAttribute("AnimeExpeditionsMissionDecal", CATEGORY_DECALS.Combat)
         gui:SetAttribute("AnimeExpeditionsMacroDecal", CATEGORY_DECALS.Combat)
         gui:SetAttribute("AnimeExpeditionsUnitsDecal", CATEGORY_DECALS.Weapons)
         gui:SetAttribute("AnimeExpeditionsProgressDecal", CATEGORY_DECALS.Progress)
@@ -1774,6 +2090,8 @@ return function(context)
             state.Recording = false
             state.AutoSummon = false
             state.AutoClaim = false
+            state.AutoAbilities = false
+            state.AutoUpgradePlaced = false
         end))
     end
 
