@@ -1,5 +1,5 @@
 param(
-    [string]$Message = "Update Codex Hub $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    [string]$Message = "Update VOR Hub $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
 )
 
 $ErrorActionPreference = "Stop"
@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $repoDirectory = $PSScriptRoot
 $sourceDirectory = Split-Path $repoDirectory -Parent
 $sourceFiles = @(
-    "codex_hub.lua",
+    "VOR_HUB.lua",
     "anime_expeditions.lua"
 )
 $git = "C:\Program Files\Git\cmd\git.exe"

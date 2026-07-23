@@ -1,4 +1,4 @@
--- VOR Hub UI Template
+-- VOR Hub UI Template (VOR_HUB.lua)
 -- Clean reusable interface framework only.
 
 local Players = game:GetService("Players")

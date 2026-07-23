@@ -10,7 +10,7 @@ local metadata = HttpService:JSONDecode(game:HttpGet(commitApi))
 local commit = metadata and metadata.sha
 assert(type(commit) == "string" and #commit >= 7, "VOR Hub could not resolve the latest GitHub commit")
 
-local scriptUrl = "https://raw.githubusercontent.com/" .. repository .. "/" .. commit .. "/codex_hub.lua"
+local scriptUrl = "https://raw.githubusercontent.com/" .. repository .. "/" .. commit .. "/VOR_HUB.lua"
 local source = game:HttpGet(scriptUrl)
 local chunk, compileError = loadstring(source)
 assert(chunk, "VOR Hub compile failed: " .. tostring(compileError))
