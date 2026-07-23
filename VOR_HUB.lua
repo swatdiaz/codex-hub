@@ -198,6 +198,106 @@ local function addStroke(parent, color, thickness, transparency)
     }, parent)
 end
 
+-- Shared VOR armor treatment. Applying this at the component-constructor level
+-- keeps every supported game visually consistent without touching its controls.
+local function addVorTrim(parent, radius, innerInset, outerTransparency)
+    local outerStroke = addStroke(parent, Color3.fromRGB(59, 43, 76), 2.2, outerTransparency or 0.10)
+    outerStroke.LineJoinMode = Enum.LineJoinMode.Miter
+    create("UIGradient", {
+        Name = "VorMetalEdge",
+        Rotation = 24,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(28, 24, 38)),
+            ColorSequenceKeypoint.new(0.20, Color3.fromRGB(205, 191, 222)),
+            ColorSequenceKeypoint.new(0.42, COLORS.accentDark),
+            ColorSequenceKeypoint.new(0.68, COLORS.toggleOnBright),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(35, 27, 48)),
+        }),
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0.00, 0.22),
+            NumberSequenceKeypoint.new(0.35, 0.04),
+            NumberSequenceKeypoint.new(0.70, 0.14),
+            NumberSequenceKeypoint.new(1.00, 0.26),
+        }),
+    }, outerStroke)
+
+    local inset = innerInset or 3
+    local overlayZ = 4
+    pcall(function()
+        overlayZ = parent.ZIndex + 2
+    end)
+    local inner = create("Frame", {
+        Name = "VorInnerTrim",
+        Active = false,
+        Position = UDim2.fromOffset(inset, inset),
+        Size = UDim2.new(1, -(inset * 2), 1, -(inset * 2)),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = overlayZ,
+    }, parent)
+    addCorner(inner, math.max(2, (radius or 8) - inset))
+    local innerStroke = addStroke(inner, COLORS.accent, 1, 0.48)
+    innerStroke.LineJoinMode = Enum.LineJoinMode.Miter
+    return outerStroke, innerStroke, inner
+end
+
+local function addVorCornerArmor(parent, inset, size, transparency)
+    local offset = inset or 5
+    local span = size or 17
+    local alpha = transparency or 0.08
+    local baseZ = 6
+    pcall(function()
+        baseZ = parent.ZIndex + 3
+    end)
+    local corners = {
+        {Name = "TL", Position = UDim2.fromOffset(offset, offset), Anchor = Vector2.new(0, 0), H = 0, V = 0},
+        {Name = "TR", Position = UDim2.new(1, -offset, 0, offset), Anchor = Vector2.new(1, 0), H = 1, V = 0},
+        {Name = "BL", Position = UDim2.new(0, offset, 1, -offset), Anchor = Vector2.new(0, 1), H = 0, V = 1},
+        {Name = "BR", Position = UDim2.new(1, -offset, 1, -offset), Anchor = Vector2.new(1, 1), H = 1, V = 1},
+    }
+    for _, data in ipairs(corners) do
+        local holder = create("Frame", {
+            Name = "VorCorner" .. data.Name,
+            Active = false,
+            AnchorPoint = data.Anchor,
+            Position = data.Position,
+            Size = UDim2.fromOffset(span, span),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = baseZ,
+        }, parent)
+        create("Frame", {
+            AnchorPoint = Vector2.new(data.H, data.V),
+            Position = UDim2.fromScale(data.H, data.V),
+            Size = UDim2.fromOffset(span, 2),
+            BackgroundColor3 = COLORS.toggleOnBright,
+            BackgroundTransparency = alpha,
+            BorderSizePixel = 0,
+            ZIndex = baseZ,
+        }, holder)
+        create("Frame", {
+            AnchorPoint = Vector2.new(data.H, data.V),
+            Position = UDim2.fromScale(data.H, data.V),
+            Size = UDim2.fromOffset(2, span),
+            BackgroundColor3 = COLORS.toggleOnBright,
+            BackgroundTransparency = alpha,
+            BorderSizePixel = 0,
+            ZIndex = baseZ,
+        }, holder)
+        local jewel = create("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(data.H, data.V),
+            Size = UDim2.fromOffset(5, 5),
+            BackgroundColor3 = COLORS.accent,
+            BackgroundTransparency = math.min(0.52, alpha + 0.12),
+            BorderSizePixel = 0,
+            Rotation = 45,
+            ZIndex = baseZ + 1,
+        }, holder)
+        addCorner(jewel, 1)
+    end
+end
+
 local function makeLabel(parent, text, position, size, color, textSize, font)
     local label = create("TextLabel", {
         BackgroundTransparency = 1,
@@ -555,10 +655,10 @@ local main = create("CanvasGroup", {
     BorderSizePixel = 0,
     ClipsDescendants = false,
 }, gui)
-addCorner(main, 12)
+addCorner(main, 8)
 do
-    local outerStroke = addStroke(main, COLORS.accentDark, 2, 0.04)
-    outerStroke.LineJoinMode = Enum.LineJoinMode.Round
+    local outerStroke = addStroke(main, COLORS.accentDark, 3, 0.02)
+    outerStroke.LineJoinMode = Enum.LineJoinMode.Miter
     create("UIGradient", {
         Name = "ContinuousIceBorder",
         Rotation = 22,
@@ -575,6 +675,59 @@ do
             NumberSequenceKeypoint.new(1.00, 0.08),
         }),
     }, outerStroke)
+end
+do
+    local armorGlow = create("Frame", {
+        Name = "VorArmorGlow",
+        Active = false,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(1, 18, 1, 18),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 0,
+    }, main)
+    addCorner(armorGlow, 12)
+    local glowStroke = addStroke(armorGlow, COLORS.accent, 8, 0.72)
+    glowStroke.LineJoinMode = Enum.LineJoinMode.Miter
+
+    local armorPlate = create("Frame", {
+        Name = "VorOuterArmor",
+        Active = false,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(1, 10, 1, 10),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 88,
+    }, main)
+    addCorner(armorPlate, 10)
+    addVorTrim(armorPlate, 10, 4, 0.02)
+    addVorCornerArmor(armorPlate, 3, 24, 0.02)
+
+    local topNotch = create("Frame", {
+        Name = "VorTopNotch",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0, -5),
+        Size = UDim2.fromOffset(34, 10),
+        BackgroundColor3 = Color3.fromRGB(15, 8, 26),
+        BackgroundTransparency = 0.02,
+        BorderSizePixel = 0,
+        Rotation = 0,
+        ZIndex = 93,
+    }, main)
+    addCorner(topNotch, 2)
+    addStroke(topNotch, COLORS.toggleOnBright, 1.4, 0.08)
+    local notchJewel = create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(8, 8),
+        BackgroundColor3 = COLORS.accent,
+        BorderSizePixel = 0,
+        Rotation = 45,
+        ZIndex = 94,
+    }, topNotch)
+    addCorner(notchJewel, 1)
 end
 create("UIGradient", {
     Rotation = 28,
@@ -594,12 +747,12 @@ do
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Image = SETTINGS.PanelBackgroundImageId,
-        ImageColor3 = Color3.fromRGB(126, 72, 172),
-        ImageTransparency = 0.42,
+        ImageColor3 = Color3.fromRGB(78, 38, 120),
+        ImageTransparency = 0.62,
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 1,
     }, main)
-    addCorner(panelBackground, 11)
+    addCorner(panelBackground, 7)
     create("UIGradient", {
         Name = "PanelImageVorFade",
         Rotation = 90,
@@ -728,6 +881,73 @@ do
     for index, xScale in ipairs(topPositions) do
         makeIcicle(13 + index, xScale, 0, iceRandom:NextInteger(5, 8), iceRandom:NextInteger(9, 20))
     end
+
+    local function makeSideCrystal(index, side, yScale, scale)
+        local leftSide = side == "Left"
+        local holder = create("Frame", {
+            Name = side .. "CrystalCluster" .. tostring(index),
+            Active = false,
+            AnchorPoint = Vector2.new(leftSide and 1 or 0, 0.5),
+            Position = UDim2.new(leftSide and 0 or 1, leftSide and -5 or 5, yScale, 0),
+            Size = UDim2.fromOffset(42 * scale, 82 * scale),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = 86,
+        }, icicleLayer)
+        local direction = leftSide and -1 or 1
+        for shardIndex = 1, 3 do
+            local shardHeight = (30 + shardIndex * 9) * scale
+            local shard = create("Frame", {
+                Name = "Shard" .. shardIndex,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(
+                    0.5,
+                    direction * (3 + shardIndex * 3) * scale,
+                    0.5,
+                    (shardIndex - 2) * 15 * scale
+                ),
+                Size = UDim2.fromOffset((7 + shardIndex) * scale, shardHeight),
+                BackgroundColor3 = shardIndex == 2 and COLORS.toggleOnBright or COLORS.accent,
+                BackgroundTransparency = 0.06 + shardIndex * 0.04,
+                BorderSizePixel = 0,
+                Rotation = direction * (25 + shardIndex * 7),
+                ZIndex = 88 + shardIndex,
+            }, holder)
+            addCorner(shard, 2)
+            addStroke(shard, Color3.fromRGB(224, 181, 255), 1, 0.22)
+            create("UIGradient", {
+                Name = "VorCrystalFacet",
+                Rotation = 90,
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(235, 207, 255)),
+                    ColorSequenceKeypoint.new(0.35, COLORS.accent),
+                    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(43, 11, 82)),
+                }),
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0.00, 0.02),
+                    NumberSequenceKeypoint.new(1.00, 0.30),
+                }),
+            }, shard)
+        end
+        local core = create("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(13 * scale, 13 * scale),
+            BackgroundColor3 = COLORS.accentDark,
+            BorderSizePixel = 0,
+            Rotation = 45,
+            ZIndex = 92,
+        }, holder)
+        addCorner(core, 2)
+        addStroke(core, COLORS.toggleOnBright, 1, 0.04)
+    end
+
+    local sidePositions = {0.16, 0.34, 0.66, 0.84}
+    for index, yScale in ipairs(sidePositions) do
+        local scale = index % 2 == 0 and 0.76 or 1
+        makeSideCrystal(index, "Left", yScale, scale)
+        makeSideCrystal(index, "Right", yScale, scale)
+    end
 end
 
 local header = create("Frame", {
@@ -739,7 +959,9 @@ local header = create("Frame", {
     BorderSizePixel = 0,
     ZIndex = 20,
 }, main)
-addCorner(header, 12)
+addCorner(header, 7)
+addVorTrim(header, 7, 3, 0.08)
+addVorCornerArmor(header, 5, 14, 0.28)
 create("UIGradient", {
     Rotation = 0,
     Color = ColorSequence.new({
@@ -854,7 +1076,7 @@ local minimizeButton = create("TextButton", {
     ZIndex = 22,
 }, header)
 addCorner(minimizeButton, 8)
-addStroke(minimizeButton, COLORS.line, 1, 0.22)
+addVorTrim(minimizeButton, 8, 2, 0.18)
 
 local closeButton = create("TextButton", {
     Name = "Close",
@@ -871,7 +1093,7 @@ local closeButton = create("TextButton", {
     ZIndex = 22,
 }, header)
 addCorner(closeButton, 8)
-addStroke(closeButton, COLORS.line, 1, 0.22)
+addVorTrim(closeButton, 8, 2, 0.18)
 
 local sidebar = create("Frame", {
     Name = "Sidebar",
@@ -881,7 +1103,8 @@ local sidebar = create("Frame", {
     BackgroundTransparency = 0.36,
     BorderSizePixel = 0,
 }, main)
-addCorner(sidebar, 12)
+addCorner(sidebar, 7)
+addVorTrim(sidebar, 7, 3, 0.12)
 create("UIGradient", {
     Rotation = 90,
     Color = ColorSequence.new({
@@ -934,7 +1157,8 @@ local contentBackdrop = create("Frame", {
     BorderSizePixel = 0,
     ZIndex = 1,
 }, main)
-addCorner(contentBackdrop, 12)
+addCorner(contentBackdrop, 7)
+addVorTrim(contentBackdrop, 7, 4, 0.20)
 create("UIGradient", {
     Rotation = 90,
     Color = ColorSequence.new({
@@ -1013,7 +1237,8 @@ local avatarCard = create("Frame", {
     ZIndex = 5,
 }, main)
 addCorner(avatarCard, 8)
-addStroke(avatarCard, COLORS.accentDark, 1, 0.48)
+addVorTrim(avatarCard, 8, 3, 0.12)
+addVorCornerArmor(avatarCard, 4, 12, 0.28)
 create("UIGradient", {
     Rotation = 90,
     Color = ColorSequence.new({
@@ -1089,8 +1314,9 @@ local welcomeCard = create("Frame", {
     BorderSizePixel = 0,
     ZIndex = 5,
 }, main)
-addCorner(welcomeCard, 10)
-addStroke(welcomeCard, COLORS.line, 1, 0.10)
+addCorner(welcomeCard, 7)
+addVorTrim(welcomeCard, 7, 3, 0.06)
+addVorCornerArmor(welcomeCard, 5, 15, 0.34)
 create("UIGradient", {
     Rotation = 0,
     Color = ColorSequence.new({
@@ -1163,7 +1389,7 @@ local searchFrame = create("Frame", {
     ZIndex = 25,
 }, header)
 addCorner(searchFrame, 8)
-addStroke(searchFrame, COLORS.line, 1, 0.30)
+addVorTrim(searchFrame, 8, 2, 0.20)
 
 local searchCircle = create("Frame", {
     Position = UDim2.fromOffset(13, 9),
@@ -1915,12 +2141,31 @@ local function makeControlRow(section, height)
         LayoutOrder = section.NextOrder,
         Size = UDim2.new(1, 0, 0, height),
         BackgroundColor3 = COLORS.sectionRow,
-        BackgroundTransparency = 0.34,
+        BackgroundTransparency = 0.18,
         BorderSizePixel = 0,
         ClipsDescendants = true,
     }, section.Body)
-    addCorner(row, 7)
-    addStroke(row, COLORS.accentDark, 1, 0.58)
+    addCorner(row, 5)
+    addStroke(row, COLORS.accentDark, 1, 0.30)
+    local rowAccent = create("Frame", {
+        Name = "VorRowAccent",
+        Position = UDim2.fromOffset(0, 7),
+        Size = UDim2.new(0, 2, 1, -14),
+        BackgroundColor3 = COLORS.accent,
+        BackgroundTransparency = 0.38,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+    }, row)
+    addCorner(rowAccent, 2)
+    create("UIGradient", {
+        Rotation = 90,
+        Color = ColorSequence.new(COLORS.toggleOnBright, COLORS.accentDark),
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.16),
+            NumberSequenceKeypoint.new(0.5, 0.02),
+            NumberSequenceKeypoint.new(1, 0.48),
+        }),
+    }, rowAccent)
     return row
 end
 
@@ -1930,7 +2175,7 @@ local function attachControlMotion(button, row, hoverTransparency)
         fluidTween(row, 0.16, {BackgroundTransparency = hoverTransparency or 0.18})
     end))
     track(button.MouseLeave:Connect(function()
-        fluidTween(row, 0.20, {BackgroundTransparency = 0.34})
+        fluidTween(row, 0.20, {BackgroundTransparency = 0.18})
     end))
 end
 
@@ -2122,12 +2367,12 @@ function SectionMethods:AddDropdown(options)
         LayoutOrder = self.NextOrder,
         Size = UDim2.new(1, 0, 0, 50),
         BackgroundColor3 = COLORS.sectionRow,
-        BackgroundTransparency = 0.34,
+        BackgroundTransparency = 0.18,
         BorderSizePixel = 0,
         ClipsDescendants = true,
     }, self.Body)
-    addCorner(row, 7)
-    addStroke(row, COLORS.accentDark, 1, 0.58)
+    addCorner(row, 5)
+    addStroke(row, COLORS.accentDark, 1, 0.30)
     create("UIListLayout", {
         Padding = UDim.new(0, 0),
         SortOrder = Enum.SortOrder.LayoutOrder,
@@ -2196,7 +2441,7 @@ function SectionMethods:AddDropdown(options)
             fluidTween(optionHolder, 0.18, {Size = UDim2.new(1, 0, 0, 0)}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
             fluidTween(row, 0.20, {
                 Size = UDim2.new(1, 0, 0, 50),
-                BackgroundTransparency = 0.34,
+                BackgroundTransparency = 0.18,
             })
             fluidTween(arrow, 0.18, {Rotation = 0})
             task.delay(0.19, function()
@@ -2286,7 +2531,7 @@ function SectionMethods:AddDropdown(options)
     end))
     track(topButton.MouseLeave:Connect(function()
         if not open then
-            fluidTween(row, 0.18, {BackgroundTransparency = 0.34})
+            fluidTween(row, 0.18, {BackgroundTransparency = 0.18})
         end
     end))
     track(topButton.MouseButton1Click:Connect(function()
@@ -2414,7 +2659,7 @@ function SectionMethods:AddSlider(options)
     end))
     track(hitbox.MouseLeave:Connect(function()
         if not dragging then
-            fluidTween(row, 0.20, {BackgroundTransparency = 0.34})
+            fluidTween(row, 0.20, {BackgroundTransparency = 0.18})
             fluidTween(knob, 0.18, {Size = UDim2.fromOffset(14, 14)})
         end
     end))
@@ -2455,7 +2700,7 @@ function SectionMethods:AddInput(options)
     track(box.FocusLost:Connect(function(enterPressed)
         fluidTween(box, 0.18, {BackgroundTransparency = 0.24})
         fluidTween(boxStroke, 0.18, {Transparency = 0.62, Thickness = 1})
-        fluidTween(row, 0.20, {BackgroundTransparency = 0.34})
+        fluidTween(row, 0.20, {BackgroundTransparency = 0.18})
         safeCallback(options.Callback, box.Text, enterPressed)
     end))
     track(box.Focused:Connect(function()
@@ -2501,8 +2746,9 @@ function PageMethods:AddSection(title, side)
         BorderSizePixel = 0,
         ClipsDescendants = true,
     }, parentColumn)
-    addCorner(card, 10)
-    addStroke(card, COLORS.accentDark, 1, 0.16)
+    addCorner(card, 6)
+    addVorTrim(card, 6, 3, 0.04)
+    addVorCornerArmor(card, 4, 14, 0.38)
 
     local sectionTexture = create("ImageLabel", {
         Name = "SectionBackground",
@@ -2511,12 +2757,12 @@ function PageMethods:AddSection(title, side)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Image = SETTINGS.SectionBackgroundImageId,
-        ImageColor3 = Color3.fromRGB(115, 62, 170),
-        ImageTransparency = 0.24,
+        ImageColor3 = Color3.fromRGB(75, 37, 118),
+        ImageTransparency = 0.54,
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 1,
     }, card)
-    addCorner(sectionTexture, 10)
+    addCorner(sectionTexture, 6)
     create("UIGradient", {
         Name = "SectionTextureShade",
         Rotation = 0,
@@ -2573,6 +2819,17 @@ function PageMethods:AddSection(title, side)
         BorderSizePixel = 0,
         ZIndex = 3,
     }, sectionHeader)
+    local headerJewel = create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0, 8, 1, -1),
+        Size = UDim2.fromOffset(7, 7),
+        BackgroundColor3 = COLORS.toggleOnBright,
+        BackgroundTransparency = 0.06,
+        BorderSizePixel = 0,
+        Rotation = 45,
+        ZIndex = 4,
+    }, sectionHeader)
+    addCorner(headerJewel, 1)
 
     local body = create("Frame", {
         LayoutOrder = 2,
@@ -2615,7 +2872,8 @@ function Window:AddPage(name)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     }, navHolder)
-    addCorner(navRow, 7)
+    addCorner(navRow, 5)
+    local navStroke = addStroke(navRow, COLORS.accent, 1, 1)
     local accent = create("Frame", {
         Position = UDim2.fromOffset(0, 10),
         Size = UDim2.fromOffset(4, 24),
@@ -2681,6 +2939,7 @@ function Window:AddPage(name)
         Frame = pageFrame,
         NavRow = navRow,
         NavAccent = accent,
+        NavStroke = navStroke,
         NavText = navText,
         LeftColumn = leftColumn,
         RightColumn = rightColumn,
@@ -2751,8 +3010,13 @@ function Window:SelectPage(name)
         end
         page.NavAccent.Visible = active
         fluidTween(page.NavRow, 0.18, {
-            BackgroundColor3 = active and COLORS.accentDark:Lerp(SNOW_WHITE, 0.30) or COLORS.surface,
-            BackgroundTransparency = active and 0.18 or 1,
+            BackgroundColor3 = active and Color3.fromRGB(39, 15, 67) or COLORS.surface,
+            BackgroundTransparency = active and 0.08 or 1,
+        })
+        fluidTween(page.NavStroke, 0.18, {
+            Color = active and COLORS.toggleOnBright or COLORS.accentDark,
+            Transparency = active and 0.06 or 1,
+            Thickness = active and 1.6 or 1,
         })
         fluidTween(page.NavText, 0.18, {TextColor3 = active and COLORS.text or COLORS.muted})
         page.NavText.TextStrokeColor3 = SNOW_WHITE
@@ -3835,8 +4099,9 @@ local categoryBar = create("Frame", {
     BorderSizePixel = 0,
     ZIndex = 20,
 }, HomePage.Frame)
-addCorner(categoryBar, 10)
-addStroke(categoryBar, COLORS.line, 1, 0.34)
+addCorner(categoryBar, 6)
+addVorTrim(categoryBar, 6, 3, 0.08)
+addVorCornerArmor(categoryBar, 4, 15, 0.38)
 create("UIPadding", {
     PaddingLeft = UDim.new(0, 6),
     PaddingRight = UDim.new(0, 6),
@@ -3893,7 +4158,7 @@ local function selectHomeCategory(name)
         end
         fluidTween(category.Button, 0.19, {
             BackgroundTransparency = active and 0.02 or 0.16,
-            BackgroundColor3 = active and COLORS.accentDark:Lerp(SNOW_WHITE, 0.48) or COLORS.surface2,
+            BackgroundColor3 = active and Color3.fromRGB(40, 15, 68) or COLORS.surface2,
             ImageTransparency = active and 0.02 or 0.14,
         })
         fluidTween(category.Label, 0.18, {
@@ -3929,8 +4194,9 @@ local function addHomeCategory(name, order, assetId)
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 21,
     }, categoryBar)
-    addCorner(button, 10)
+    addCorner(button, 6)
     local buttonStroke = addStroke(button, COLORS.line, 1, 0.34)
+    addVorCornerArmor(button, 4, 12, 0.54)
 
     local selectedGlow = create("Frame", {
         Name = "SelectedGlow",
@@ -3943,7 +4209,7 @@ local function addHomeCategory(name, order, assetId)
         Visible = false,
         ZIndex = 20,
     }, button)
-    addCorner(selectedGlow, 13)
+    addCorner(selectedGlow, 8)
 
     local caption = create("Frame", {
         Name = "Caption",
