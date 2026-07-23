@@ -3,7 +3,7 @@
 -- that commit so GitHub's branch cache cannot serve an older hub build.
 
 local HttpService = game:GetService("HttpService")
-local repository = "swatdiaz/codex-hub"
+local repository = "swatdiaz/VOR-HUB"
 local commitApi = "https://api.github.com/repos/" .. repository .. "/commits/main"
 
 local metadata = HttpService:JSONDecode(game:HttpGet(commitApi))

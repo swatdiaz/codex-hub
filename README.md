@@ -5,7 +5,7 @@ GitHub-backed source for VOR Hub.
 ## Loader
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/swatdiaz/codex-hub/main/VOR_HUB.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/swatdiaz/VOR-HUB/main/VOR_HUB.lua"))()
 ```
 
 The loader URL stays the same when `VOR_HUB.lua` is updated on the `main` branch.
@@ -21,5 +21,5 @@ The loader URL stays the same when `VOR_HUB.lua` is updated on the `main` branch
 Run this from PowerShell after changing the parent `VOR_HUB.lua` file:
 
 ```powershell
-& ".\codex-hub\update-github.ps1"
+& ".\VOR-HUB\update-github.ps1"
 ```

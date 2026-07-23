@@ -47,4 +47,4 @@ if ($LASTEXITCODE -ne 0) {
     throw "GitHub push failed."
 }
 
-Write-Host "Published: https://github.com/swatdiaz/codex-hub"
+Write-Host "Published: https://github.com/swatdiaz/VOR-HUB"

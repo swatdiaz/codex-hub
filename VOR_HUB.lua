@@ -118,7 +118,7 @@ local ACTIVE_GAME_SUPPORT = resolveGameSupport()
 -- when the hub starts. Keeping large integrations separate prevents one game's
 -- controls and runtime hooks from leaking into another supported experience.
 local function loadCodexGameModule(fileName)
-    local repository = "swatdiaz/codex-hub"
+    local repository = "swatdiaz/VOR-HUB"
     local commitApi = "https://api.github.com/repos/" .. repository .. "/commits/main"
     local metadata = HttpService:JSONDecode(game:HttpGet(commitApi))
     local commit = metadata and metadata.sha
